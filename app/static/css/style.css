@@ -1,0 +1,242 @@
+:root {
+    --vnpt-blue: #0066cc; /* Màu xanh chủ đạo giống ảnh */
+    --sidebar-width: 260px;
+    --header-height: 60px;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f6f9;
+    overflow-x: hidden;
+}
+
+/* HEADER STYLE */
+.navbar-custom {
+    background-color: var(--vnpt-blue);
+    height: var(--header-height);
+    z-index: 1001; /* Nằm trên sidebar */
+    position: fixed;
+    width: 100%;
+    top: 0;
+}
+.navbar-brand {
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: white !important;
+}
+
+/* SIDEBAR STYLE */
+.sidebar {
+    width: var(--sidebar-width);
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    left: 0;
+    background-color: #0a5699;
+    border-right: 1px solid #dee2e6;
+    padding-top: 10px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+
+.nav-link {
+    color: #555; 
+    font-size: 0.95rem;
+    padding: 12px 20px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.3s ease;
+}
+
+
+.nav-link i.icon-left {
+    width: 25px;
+    text-align: center;
+    margin-right: 10px;
+    color: white; 
+}
+
+
+.nav-link:hover {
+    background-color: var(--vnpt-blue); /* Nền xanh VNPT */
+    color: white !important;            /* Chữ trắng */
+    padding-left: 25px;                 /* Hiệu ứng đẩy nhẹ sang phải cho đẹp */
+}
+
+.nav-link:hover i.icon-left,
+.nav-link:hover .rotate-icon {
+    color: white !important;            /* Icon cũng chuyển trắng */
+}
+
+/* --- TRẠNG THÁI ĐANG CHỌN (ACTIVE) --- */
+/* Giữ nguyên màu xanh cho item đang được chọn */
+.nav-link.active {
+    background-color: #1a73e8;
+    color: white;
+    font-weight: 500;
+}
+
+.nav-link.active i {
+    color: white;
+}
+
+/* ... (Các phần dưới giữ nguyên) ... */
+
+/* MAIN CONTENT */
+.main-content {
+    margin-top: var(--header-height);
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+    min-height: calc(100vh - var(--header-height));
+}
+
+/* Dropdown arrow rotation */
+.rotate-icon {
+    transition: transform 0.3s;
+}
+.collapsed .rotate-icon {
+    transform: rotate(-90deg);
+}
+
+/* Nhãn (Label) của các ô nhập liệu */
+.form-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 2px;
+}
+
+/* Các ô nhập liệu (Input/Select) thu nhỏ cho giống Desktop App */
+.form-control-sm, .form-select-sm {
+    font-size: 13px;
+    border-radius: 3px;
+}
+
+/* Thanh công cụ nút bấm (Thêm, Sửa, Lưu...) */
+.btn-toolbar-custom .btn {
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    margin-right: 5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Các Tab phía trên (Đăng ký khám VP...) */
+.nav-tabs .nav-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    border-radius: 0;
+    padding: 10px 15px;
+}
+.nav-tabs .nav-link.active {
+    background-color: #337ab7; /* Màu xanh tab đang chọn */
+    color: white;
+    border-color: #337ab7;
+}
+
+/* Khung viền bao quanh (Fieldset) */
+.custom-fieldset {
+    border: 1px solid #a6c9e2; /* Viền xanh nhạt */
+    padding: 15px;
+    background: #fff;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+/* Tiêu đề của khung (VD: Thông tin phiếu) */
+.fieldset-title {
+    color: #0066cc;
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+/* Icon bên trong ô input (VD: Icon lịch) */
+.input-group-text {
+    font-size: 12px;
+    padding: 0 8px;
+}
+
+/* Ô chỉ xem (Readonly) - màu xám */
+.readonly-field {
+    background-color: #e9ecef; 
+}
+
+/* =========================================================
+   TOAST NOTIFICATION (THÔNG BÁO GÓC MÀN HÌNH)
+   ========================================================= */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.custom-toast {
+    min_width: 300px;
+    background-color: #fff;
+    color: #fff;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    /* Animation: Trượt vào -> Chờ -> Mờ dần */
+    animation: slideInRight 0.5s ease forwards, fadeOut 0.5s ease 3s forwards;
+    opacity: 0;
+}
+
+/* Màu sắc cho từng loại thông báo */
+.toast-success {
+    background-color: #28a745; /* Màu xanh lá */
+    border-left: 5px solid #1e7e34;
+}
+
+.toast-error {
+    background-color: #dc3545; /* Màu đỏ */
+    border-left: 5px solid #bd2130;
+}
+
+.toast-warning {
+    background-color: #ffc107; /* Màu vàng */
+    color: #333;
+    border-left: 5px solid #d39e00;
+}
+
+/* Icon và Text */
+.toast-icon { margin-right: 15px; font-size: 20px; }
+.toast-content h6 { margin: 0; font-weight: bold; font-size: 16px; }
+.toast-content p { margin: 0; font-size: 14px; opacity: 0.9; }
+
+/* Keyframes hiệu ứng */
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; display: none; }
+}
+
+.footer-custom {
+    position: fixed;
+    bottom: 0;
+    left: 260px; /* đúng chiều rộng sidebar */
+    right: 0;
+    height: 34px;
+    background: #0a5699; /* màu giống navbar-custom */
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    z-index: 999;
+    box-shadow: 0 -1px 4px rgba(0,0,0,0.15);
+}

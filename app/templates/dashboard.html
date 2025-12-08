@@ -1,0 +1,273 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3 h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Tiếp đón hôm nay</h6>
+                        <h2 class="fw-bold mb-0">{{ stats.patients_today }}</h2>
+                    </div>
+                    <i class="bi bi-people fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3 h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Đang chờ khám</h6>
+                        <h2 class="fw-bold mb-0">{{ stats.waiting }}</h2>
+                    </div>
+                    <i class="bi bi-hourglass-split fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3 h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Doanh thu ngày</h6>
+                        <h2 class="fw-bold mb-0">{{ stats.revenue }}</h2>
+                        <small class="opacity-75">VND</small>
+                    </div>
+                    <i class="bi bi-currency-dollar fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-primary mb-3 h-100 shadow-sm">
+            <div class="card-body text-primary">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-uppercase small">Bác sĩ trực</h6>
+                        <h2 class="fw-bold mb-0">{{ stats.doctors_active }}</h2>
+                    </div>
+                    <i class="bi bi-person-badge fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row align-items-stretch mb-4">
+    
+    <div class="col-lg-8 d-flex flex-column">
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-graph-up"></i> Lưu lượng khám trong ngày</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="trafficChart" height="100"></canvas> 
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 flex-grow-1">
+             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-primary">Danh sách bệnh nhân</h5>
+                <button class="btn btn-sm btn-outline-primary">Xem tất cả</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mã BN</th>
+                                <th>Họ tên</th>
+                                <th>Tuổi</th>
+                                <th>Thời gian</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td class="fw-bold text-secondary">{{ p.id }}</td>
+                                <td>{{ p.name }}</td>
+                                <td>{{ p.age }}</td>
+                                <td>{{ p.time }}</td>
+                                <td>
+                                    {% if p.status == 'Chờ khám' %}
+                                        <span class="badge bg-warning text-dark">Chờ khám</span>
+                                    {% elif p.status == 'Đang khám' %}
+                                        <span class="badge bg-primary">Đang khám</span>
+                                    {% elif p.status == 'Tiếp nhận' %}
+                                        <span class="badge bg-info text-dark">Tiếp nhận</span>
+                                    {% elif p.status == 'Hoàn thành' %}
+                                        <span class="badge bg-success">Hoàn thành</span>
+                                    {% elif p.status == 'Cấp cứu' %}
+                                        <span class="badge bg-danger">Cấp cứu</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ p.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 d-flex flex-column">
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-success"><i class="bi bi-pie-chart"></i> Phân bố chuyên khoa</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="diseaseChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 flex-grow-1">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">Thông báo nhanh</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Họp giao ban</div>
+                        Tại phòng 302
+                    </div>
+                    <span class="badge bg-primary rounded-pill">14:00</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Bảo trì hệ thống</div>
+                        Dự kiến 22:00 tối nay
+                    </div>
+                </li>
+            </ul>
+            <div class="card-body p-0"></div>
+        </div>
+    </div>
+</div>
+
+<div class="row align-items-stretch">
+    
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4 h-100"> 
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-success"><i class="bi bi-currency-exchange"></i> Xu hướng doanh thu (7 ngày)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueTrendChart" height="140"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-wallet2"></i> Hình thức thanh toán</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="paymentChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // 1. Nhận dữ liệu từ Backend Flask và Parse JSON an toàn
+    const chartData = JSON.parse('{{ chart_data | tojson | safe }}');
+
+    // --- CHART 1: TRAFFIC (LƯU LƯỢNG) ---
+    new Chart(document.getElementById('trafficChart'), {
+        type: 'line',
+        data: {
+            labels: chartData.traffic.labels,
+            datasets: [{
+                label: 'Lượt khám',
+                data: chartData.traffic.values,
+                borderColor: '#0d6efd', 
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4, 
+                fill: true
+            }]
+        },
+        options: { 
+            responsive: true, 
+            plugins: { legend: { display: false } }, 
+            scales: { y: { beginAtZero: true } } 
+        }
+    });
+
+    // --- CHART 2: DISEASE (CHUYÊN KHOA) ---
+    new Chart(document.getElementById('diseaseChart'), {
+        type: 'doughnut',
+        data: {
+            labels: chartData.disease.labels,
+            datasets: [{
+                data: chartData.disease.values,
+                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+                hoverOffset: 4
+            }]
+        },
+        options: { 
+            responsive: true, 
+            plugins: { legend: { position: 'bottom' } } 
+        }
+    });
+
+    // --- CHART 3: REVENUE TREND (XU HƯỚNG TIỀN) ---
+    new Chart(document.getElementById('revenueTrendChart'), {
+        type: 'line',
+        data: {
+            labels: chartData.revenue_trend.labels,
+            datasets: [{
+                label: 'Doanh thu (VNĐ)',
+                data: chartData.revenue_trend.values,
+                borderColor: '#198754', // Màu xanh lá cây
+                backgroundColor: 'rgba(25, 135, 84, 0.1)', 
+                tension: 0.3, 
+                fill: true
+            }]
+        },
+        options: { 
+            responsive: true, 
+            plugins: { legend: { display: false } }, 
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    ticks: { callback: (val) => val.toLocaleString() } // Format số có dấu phẩy
+                } 
+            } 
+        }
+    });
+
+    // --- CHART 4: PAYMENT METHOD (THANH TOÁN) ---
+    new Chart(document.getElementById('paymentChart'), {
+        type: 'pie',
+        data: {
+            labels: chartData.payment.labels,
+            datasets: [{
+                data: chartData.payment.values,
+                backgroundColor: ['#0dcaf0', '#6c757d', '#ffc107', '#20c997'], 
+                hoverOffset: 4
+            }]
+        },
+        options: { 
+            responsive: true, 
+            plugins: { legend: { position: 'bottom' } } 
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hệ thống quản lý phòng khám{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* CSS bổ sung nhỏ để trỏ chuột vào avatar hiện hình bàn tay */
+        .cursor-pointer { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom px-3">
+        <div class="d-flex align-items-center">
+            <i class="fa-brands fa-windows fa-lg text-white me-2"></i> 
+            <div class="d-flex flex-column text-white" style="line-height: 1.2;">
+                <span style="font-size: 11px;">Hệ thống quản lý khám chữa bệnh</span>
+                <span style="font-weight: 800;">LKC HOSPITAL</span>
+            </div>
+        </div>
+        
+        <div class="ms-auto d-flex align-items-center text-white">
+            {% if current_user.is_authenticated %}
+                <div class="dropdown">
+                    <div class="d-flex align-items-center cursor-pointer" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="me-3 d-none d-md-block text-end" style="font-size: 12px; line-height: 1.3;">
+                            <span class="opacity-75">Hỗ trợ PM | 0967523958</span><br>
+                            <span class="fw-bold text-uppercase">
+                                {{ current_user.staff.expertise.expertise_name }}. {{ current_user.staff.full_name if current_user.staff else current_user.username }}
+                            </span>
+                        </div>
+                        <i class="fa-solid fa-circle-user fa-2x"></i>
+                    </div>
+
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
+                        <li>
+                            <div class="px-3 py-2">
+                                <p class="mb-0 small text-muted">Xin chào,</p>
+                                <p class="mb-0 fw-bold">{{ current_user.staff.full_name if current_user.staff else current_user.username }}</p>
+                                {% if current_user.staff %}
+                                    <span >{{ current_user.staff.position.position_name if current_user.staff.position else 'Nhân viên' }}</span>
+                                {% endif %}
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item py-2" href="#">
+                                <i class="fa-solid fa-user-gear me-2 text-secondary"></i>Thông tin tài khoản
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2 text-danger fw-bold" href="{{ url_for('auth_bp.logout') }}">
+                                <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            {% else %}
+                <a href="{{ url_for('auth_bp.login') }}" class="text-white text-decoration-none fw-bold">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i> Đăng nhập
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="sidebar shadow-sm">
+        <div class="px-3 mb-3">
+            <input type="text" class="form-control form-control-sm" placeholder="Tìm kiếm chức năng">
+        </div>
+        
+        <nav class="nav flex-column">
+            <a class="nav-link text-white" href="/">
+                <div><i class="fa-solid fa-gauge icon-left"></i> Dashboard</div>
+            </a>
+            
+            <!-- <a class="nav-link" href="#">
+                <div><i class="fa-regular fa-star icon-left"></i> BookMark</div>
+            </a> -->
+            {% if current_user.role.role_name in ['Lễ tân'] %}
+            <a class="nav-link text-white" href="/quan-ly-tiep-don">
+                <div><i class="fa-solid fa-users icon-left"></i> Quản Lý Tiếp Đón</div>
+            </a>
+            <a class="nav-link text-white" href="/admin/quan-ly-benh-nhan">
+                <div><i class="fa-solid fa-receipt icon-left"></i> Quản Lý Bệnh Nhân</div>
+            </a>
+            {% endif %}
+
+            {% if current_user.role.role_name in ['Bác sĩ','Điều dưỡng'] %}
+            <a class="nav-link text-white" href="/quan-ly-kham-benh">
+                <div><i class="fa-solid fa-id-card icon-left"></i> Quản Lý Khám Bệnh</div>
+            </a>
+            {% endif %}
+
+            {% if current_user.role.role_name in ['Admin'] %}
+            <a class="nav-link text-white" href="/admin/quan-ly-dich-vu">
+                <div><i class="fa-solid fa-receipt icon-left"></i> Quản Lý Dịch Vụ</div>
+            </a>
+        
+            <a class="nav-link text-white" href="/admin/quan-ly-nhan-vien">
+                <div><i class="fa-solid fa-receipt icon-left"></i> Quản Lý Nhân Viên</div>
+            </a>
+            <a class="nav-link text-white" href="/admin/quan-ly-benh-nhan">
+                <div><i class="fa-solid fa-receipt icon-left"></i> Quản Lý Bệnh Nhân</div>
+            </a>
+            <a class="nav-link text-white" href="#">
+                <div><i class="fa-regular fa-file-lines icon-left"></i> Báo Cáo</div>
+                <i class="fa-solid fa-chevron-down" style="font-size: 10px;"></i>
+            </a>
+
+            <a class="nav-link text-white" href="#">
+                <div><i class="fa-solid fa-gears icon-left"></i> Hệ Thống</div>
+                <i class="fa-solid fa-chevron-down" style="font-size: 10px;"></i>
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <main class="main-content">
+        {% block content %}
+        {% endblock %}
+    </main>
+    <!-- FOOTER BỔ SUNG -->
+    <footer class="footer-custom text-white d-flex justify-content-between align-items-center px-4">
+        <span>Đồ án tốt nghiệp – Hệ thống quản lý khám chữa bệnh</span>
+        <span>© 2025 Lê Khắc Cường</span>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+</body>
+</html>

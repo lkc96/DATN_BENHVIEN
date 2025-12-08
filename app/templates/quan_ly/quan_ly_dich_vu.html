@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid px-4 pt-2 pb-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="fw-bold text-primary m-0">QUẢN LÝ DỊCH VỤ</h3>
+        <div>
+            <button class="btn btn-success me-2 fw-bold" onclick="openManageCatalogModal()">
+                <i class="fa-solid fa-list"></i> DANH MỤC
+            </button>
+            <button class="btn btn-primary fw-bold" onclick="openServiceModal()">
+                <i class="fa-solid fa-plus"></i> Thêm Dịch vụ mới
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-white p-3 shadow-sm rounded">
+        
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-custom-header align-middle">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 5%">STT</th>
+                        <th style="width: 45%">Tên Dịch vụ</th>
+                        <th class="text-center" style="width: 25%">Danh mục</th>
+                        <th class="text-end" style="width: 15%">Đơn giá (VNĐ)</th>
+                        <th class="text-center" style="width: 10%">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="table_services">
+                    </tbody>
+            </table>
+        </div>
+
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination justify-content-center mb-0" id="service_pagination">
+                </ul>
+        </nav>
+    </div>
+</div>
+
+<div class="modal fade" id="modalManageCatalogs" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-list"></i> QUẢN LÝ DANH MỤC DỊCH VỤ</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="m-0 fw-bold text-muted">Danh sách các nhóm/danh mục hiện có:</h6>
+                     <button class="btn btn-sm btn-success" onclick="openCatalogModal()">
+                        <i class="fa-solid fa-plus"></i> Thêm mới
+                    </button>
+                </div>
+               
+                <div class="bg-white p-2 rounded shadow-sm border">
+                    <table class="table table-bordered table-striped table-hover table-custom-header align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center" style="width: 10%">ID</th>
+                                <th>Tên Danh mục</th>
+                                <th class="text-center" style="width: 20%">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_catalogs">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalService">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">Thông tin Dịch vụ</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="svc_id">
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">Tên dịch vụ <span class="text-danger">*</span></label>
+                    <input type="text" id="svc_name" class="form-control" placeholder="Ví dụ: Khám Nội tổng quát">
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">Danh mục <span class="text-danger">*</span></label>
+                    <select id="svc_catalog" class="form-select">
+                        </select>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">Đơn giá (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="number" id="svc_price" class="form-control" placeholder="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-primary fw-bold" onclick="saveService()">Lưu Dịch vụ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCatalogInput" tabindex="-1" style="z-index: 1060;"> <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-success">
+            <div class="modal-header bg-success text-white py-2">
+                <h6 class="modal-title fw-bold">Nhập tên Danh mục</h6>
+                </div>
+            <div class="modal-body">
+                <input type="hidden" id="cat_id">
+                <label class="small fw-bold mb-1">Tên danh mục:</label>
+                <input type="text" id="cat_name" class="form-control form-control-sm" autofocus>
+            </div>
+            <div class="modal-footer py-1">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button class="btn btn-sm btn-success fw-bold" onclick="saveCatalog()">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{{ url_for('static', filename='js/admin_service.js') }}"></script>
+
+<style>
+    .table-custom-header thead th {
+        background-color: #198754 !important; /* Xanh lá */
+        color: white !important;
+        border-bottom: 2px solid #e7eeeb;
+    }
+    /* Tăng độ tương phản cho dòng kẻ sọc */
+    .table-striped > tbody > tr:nth-of-type(odd) > * {
+        box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.05); /* Màu xám nhạt */
+    }
+    /* Căn giữa nội dung trong ô cho đẹp */
+    .table.align-middle td {
+        vertical-align: middle;
+    }
+</style>
+
+{% endblock %}

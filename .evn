@@ -1,0 +1,2 @@
+DATABASE_URL=postgresql://postgres:1410434@localhost:5432/DATN_Benhvien
+SECRET_KEY=1410434lkc

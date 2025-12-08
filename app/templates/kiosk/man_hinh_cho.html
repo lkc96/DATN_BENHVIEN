@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosk Thanh Toán Tự Động</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            background-color: #e9ecef; 
+            height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; /* Chặn cuộn trang */
+            user-select: none; /* Chặn bôi đen văn bản */
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .kiosk-box {
+            background: white;
+            padding: 60px;
+            border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        /* Animation Icon */
+        .icon-waiting { 
+            font-size: 150px; color: #0d6efd; margin-bottom: 40px; 
+            animation: pulse 2s infinite; 
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Text Styles */
+        .status-title { font-size: 36px; font-weight: 800; color: #333; text-transform: uppercase; letter-spacing: 1px; }
+        .status-desc { font-size: 22px; color: #666; margin-top: 15px; }
+
+        /* Ẩn khung in */
+        #print-area { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="kiosk-box" id="screen-waiting">
+        <div class="icon-waiting">
+            <i class="fa-solid fa-wifi"></i>
+        </div>
+        <div class="status-title">VUI LÒNG QUẸT THẺ</div>
+        <div class="status-desc">Hệ thống sẽ tự động thanh toán và in phiếu</div>
+        <p class="mt-5 text-muted small"><i class="fa-solid fa-arrow-up"></i> Đặt thẻ vào đầu đọc để tiếp tục</p>
+    </div>
+
+    <div class="kiosk-box" id="screen-processing" style="display: none;">
+        <div class="spinner-border text-primary" style="width: 8rem; height: 8rem;" role="status"></div>
+        <h2 class="mt-5 fw-bold text-primary">ĐANG XỬ LÝ...</h2>
+        <p class="fs-4 text-muted">Xin vui lòng chờ trong giây lát</p>
+    </div>
+
+    <div class="kiosk-box" id="screen-result" style="display: none;">
+        <div id="res-icon" style="font-size: 120px; margin-bottom: 30px;"></div>
+        <h2 id="res-title" class="fw-bold" style="font-size: 40px;"></h2>
+        <p id="res-desc" class="fs-3 mt-3"></p>
+    </div>
+
+    <div id="print-area">
+        <div style="font-family: monospace; padding: 10px; width: 300px; text-align: center;">
+            <h3 style="margin: 0;">PHIẾU CHỈ ĐỊNH DỊCH VỤ</h3>
+            <p>--------------------------------</p>
+            <div style="text-align: left;">
+                Mã BN: <b id="p_ma_bn">...</b><br>
+                Họ tên: <b id="p_ho_ten">...</b>
+            </div>
+            <p>--------------------------------</p>
+            <div id="p_services" style="text-align: left;"></div>
+            <p>--------------------------------</p>
+            <div style="text-align: right; font-weight: bold;">
+                TỔNG TIỀN: <span id="p_total"></span>
+            </div>
+            <h4 style="margin-top: 15px;">ĐÃ THANH TOÁN</h4>
+        </div>
+    </div>
+    <div id="print-topup-area" style="display: none;">
+    <div style="font-family: monospace; padding: 20px; width: 300px; text-align: center; border: 2px solid #000;">
+        <h3 style="margin: 0;">YÊU CẦU NẠP TIỀN</h3>
+        <p>--------------------------------</p>
+        <div style="text-align: left;">
+            Mã BN: <b id="t_ma_bn">...</b><br>
+            Họ tên: <b id="t_ho_ten">...</b>
+        </div>
+        <hr style="border-top: 1px dashed #000;">
+        
+        <div style="text-align: right; font-size: 14px;">
+            Số dư hiện tại: <span id="t_so_du">0</span><br>
+            Tổng viện phí: <span id="t_tong_tien">0</span>
+        </div>
+        
+        <div style="margin-top: 10px; font-size: 16px; font-weight: bold; border: 1px solid #000; padding: 5px;">
+            CẦN NẠP THÊM:<br>
+            <span id="t_can_nap" style="font-size: 24px;">0</span>
+        </div>
+
+        <p style="margin-top: 10px; font-style: italic;">Quét mã để thanh toán ngay:</p>
+        
+        <img id="t_qr_code" src="" style="width: 100%; max-width: 200px; display: block; margin: 0 auto;">
+        
+        <p>--------------------------------</p>
+        <p style="font-size: 12px;">(Sau khi nạp, vui lòng quẹt thẻ lại)</p>
+    </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Biến dùng để hứng ký tự từ máy quét
+        var buffer = "";
+        var lastKeyTime = Date.now();
+
+        $(document).ready(function() {
+            
+            // --- LẮNG NGHE BÀN PHÍM TOÀN CỤC (GLOBAL LISTENER) ---
+            $(document).on('keydown', function(e) {
+                // Chỉ nhận sự kiện khi đang ở màn hình chờ
+                if (!$('#screen-waiting').is(':visible')) return;
+
+                var currentTime = Date.now();
+                var char = e.key;
+
+                // 1. Reset buffer nếu khoảng cách giữa 2 lần gõ quá lâu (>100ms)
+                // Máy quét thẻ gõ rất nhanh (thường < 50ms/ký tự)
+                // Người gõ tay sẽ chậm hơn -> Giúp phân biệt
+                if (currentTime - lastKeyTime > 200) {
+                    buffer = "";
+                }
+                lastKeyTime = currentTime;
+
+                // 2. Xử lý phím Enter (Kết thúc quét)
+                if (e.which === 13) { // Phím Enter
+                    if (buffer.length > 3) { // Độ dài mã thẻ tối thiểu
+                        console.log("Mã thẻ nhận được:", buffer);
+                        processPayment(buffer);
+                        buffer = ""; // Xóa buffer sau khi xử lý
+                    }
+                } 
+                // 3. Xử lý các ký tự số/chữ (Bỏ qua Shift, Ctrl...)
+                else if (char.length === 1) {
+                    buffer += char;
+                }
+            });
+        });
+
+        // HÀM GỌI API THANH TOÁN
+        function processPayment(cardCode) {
+            // Chuyển giao diện sang Loading
+            $('#screen-waiting').hide();
+            $('#screen-processing').show();
+
+            $.ajax({
+                // Gọi API xử lý Kiosk (Code Python đã viết ở bài trước)
+                url: '/api/kiosk/xu-ly-thanh-toan', 
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ card_code: cardCode }),
+                success: function(res) {
+                    if(res.success) {
+                showResult('success', 'THANH TOÁN THÀNH CÔNG', 'Đang in phiếu...');
+                setTimeout(function() { printTicket(res.print_data); }, 1000);
+            } else {
+                // [MỚI] Xử lý thiếu tiền
+                if (res.code === 'LOW_BALANCE') {
+                    showResult('warning', 'SỐ DƯ KHÔNG ĐỦ', 'Đang in phiếu nạp tiền...');
+                    
+                    // Gọi hàm in phiếu nạp tiền
+                    setTimeout(function() { 
+                        printTopUpTicket(res.print_data); 
+                    }, 1000);
+                    
+                } else {
+                    showResult('error', 'GIAO DỊCH THẤT BẠI', res.message);
+                }
+            }
+                },
+                error: function(err) {
+                    showResult('error', 'LỖI KẾT NỐI', 'Không tìm thấy máy chủ');
+                }
+            });
+        }
+
+        // HÀM HIỂN THỊ KẾT QUẢ
+        function showResult(type, title, desc) {
+            $('#screen-processing').hide();
+            $('#screen-result').show();
+            
+            var color = type == 'success' ? '#198754' : (type == 'warning' ? '#fd7e14' : '#dc3545');
+            var icon = type == 'success' ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-circle-xmark"></i>';
+            
+            if(type == 'warning') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+
+            $('#res-icon').html(icon).css('color', color);
+            $('#res-title').text(title).css('color', color);
+            $('#res-desc').text(desc);
+
+            // Tự động quay về màn hình chờ sau 5 giây
+            setTimeout(resetKiosk, 5000);
+        }
+
+        // HÀM RESET
+        function resetKiosk() {
+            $('#screen-result').hide();
+            $('#screen-waiting').show();
+            buffer = "";
+        }
+
+        // HÀM IN PHIẾU (Silent Print)
+        function printTicket(data) {
+            // Điền dữ liệu
+            $('#p_ma_bn').text(data.ma_bn);
+            $('#p_ho_ten').text(data.ho_ten);
+            $('#p_total').text(new Intl.NumberFormat('vi-VN').format(data.total) + ' đ');
+            
+            var html = '';
+            if(data.services) {
+                data.services.forEach(s => {
+                    html += `<div>- ${s.name}</div>`;
+                });
+            }
+            $('#p_services').html(html);
+
+            // Mở cửa sổ in
+            var content = document.getElementById('print-area').innerHTML;
+            var win = window.open('', '', 'height=500,width=400');
+            win.document.write('<html><head><title>Receipt</title></head><body>');
+            win.document.write(content);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.focus();
+            
+            // Tự động in và đóng
+            setTimeout(() => { 
+                win.print(); 
+                win.close(); 
+            }, 500);
+        }
+
+        function printTopUpTicket(data) {
+            // 1. Điền dữ liệu
+            $('#t_ma_bn').text(data.ma_bn);
+            $('#t_ho_ten').text(data.ho_ten);
+            
+            // Format tiền
+            var fmt = new Intl.NumberFormat('vi-VN');
+            $('#t_so_du').text(fmt.format(data.so_du) + ' đ');
+            $('#t_tong_tien').text(fmt.format(data.tong_tien) + ' đ');
+            $('#t_can_nap').text(fmt.format(data.can_nap) + ' đ');
+            
+            // Gán ảnh QR
+            $('#t_qr_code').attr('src', data.qr_url);
+
+            // 2. Mở cửa sổ in
+            var content = document.getElementById('print-topup-area').innerHTML;
+            var win = window.open('', '', 'height=600,width=400');
+            win.document.write('<html><head><title>Nạp Tiền</title></head><body>');
+            win.document.write(content);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.focus();
+            
+            // Tự động in sau khi ảnh QR tải xong
+            setTimeout(() => { 
+                win.print(); 
+                win.close(); 
+            }, 800); // Delay lâu hơn xíu để load ảnh QR
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <title>Truy cập bị từ chối</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+    <div class="text-center">
+        <h1 class="display-1 fw-bold text-danger">403</h1>
+        <h2 class="mb-3">Truy cập bị từ chối!</h2>
+        <p class="text-muted mb-4">Xin lỗi, tài khoản <b>{{ current_user.username }}</b> ({{ current_user.role.role_name }}) không có quyền truy cập trang này.</p>
+        <a href="/" class="btn btn-primary">Quay về Trang chủ</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,587 @@
+{% extends "layout.html" %}
+
+{% block title %}Tiếp đón và đăng kí khám{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <ul class="nav nav-tabs mb-3 border-bottom-0">
+        <li class="nav-item">
+            <a class="nav-link active" href="javascript:void(0)" id="tab-dang-ky" onclick="switchTab('dang-ky')">Đăng ký khám</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="tab-danh-sach" onclick="switchTab('danh-sach')">Danh sách tiếp nhận</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="tab-tai-khoan" onclick="switchTab('tai-khoan')">Thông tin tài khoản</a>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="#">Hẹn khám</a></li>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="tab-thu-tien" onclick="switchTab('thu-tien')">Thu tiền</a>
+        </li>
+    </ul>
+    <div id="view-dang-ky">
+        <div class="btn-toolbar-custom mb-3 d-flex flex-wrap">
+        <button class="btn btn-success"><i class="fa-solid fa-plus-circle me-1"></i> THÊM MỚI</button>
+        <button class="btn btn-warning text-white"><i class="fa-solid fa-pen me-1"></i> SỬA</button>
+        <button class="btn btn-primary btn-save"><i class="fa-solid fa-floppy-disk me-1"></i> LƯU</button>
+        <button class="btn btn-danger"><i class="fa-solid fa-ban me-1"></i> HỦY</button>
+        
+    </div>
+
+    <form id="formTiepDon">
+        <div class="custom-fieldset shadow-sm rounded mt-3">
+            <div class="row align-items-center">
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-danger mb-0"> <i class="fa-solid fa-wifi"></i> QUẸT THẺ:</label>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control fw-bold text-primary" id="card_code" placeholder="Đặt trỏ chuột vào đây và quẹt thẻ..." autofocus>
+                        <button class="btn btn-primary" type="button" id="btnCheckCard">Kiểm tra</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <span id="card_status" class="fw-bold fst-italic text-muted small">---</span>
+                </div>
+            </div>
+            <h6 class="fieldset-title"></h6>
+            <div class="row g-2 mb-2">
+                <div class="col-md-2">
+                    <label class="form-label">Mã BN</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" id="ma_bn" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-sm border-primary" id="ho_ten">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Giới tính <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="gioi_tinh">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ngày sinh <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="ngay_sinh" placeholder="dd/mm/yyyy">
+                        <span class="input-group-text"><i class="fa-regular fa-calendar"></i></span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Tuổi</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" id="tuoi_bn" readonly>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-md-3">
+                    <label class="form-label">Số CCCD</label>
+                    <input type="text" class="form-control form-control-sm" id="cccd">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Số điện thoại</label>
+                    <input type="text" class="form-control form-control-sm" id="sdt">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Email</label>
+                    <input type="text" class="form-control form-control-sm" id="email">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Người nhà</label>
+                    <input type="text" class="form-control form-control-sm" id="nguoi_nha">
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-md-3">
+                    <label class="form-label">Quốc tịch</label>
+                    <select class="form-select form-select-sm">
+                        <option>Việt Nam</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tỉnh/TP</label>
+                    <select class="form-select form-select-sm" id="province"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Quận/huyện</label>
+                    <select class="form-select form-select-sm" id="district"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Phường/xã</label>
+                    <select class="form-select form-select-sm" id="ward"></select>
+                </div>
+            </div>
+
+             <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <label class="form-label">Số nhà</label>
+                    <input type="text" class="form-control form-control-sm" id="sonha">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-sm readonly-field" id="diachi_full" readonly>
+                </div>
+            </div>
+        </div>
+
+        <!-- <div class="custom-fieldset shadow-sm rounded mt-3">
+            <h6 class="fieldset-title">Thông tin tài khoản thẻ</h6>
+            <div class="row g-2 mb-2">
+                <div class="col-md-3">
+                    <label class="form-label">Mã Thẻ</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" id="ma_the" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ngày tạo thẻ</label>
+                     <input type="text" class="form-control form-control-sm readonly-field" id="ngay_tao_the" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tình trạng</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" id="trang_thai_the" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Số dư</label>
+                    <input type="text" class="form-control form-control-sm fw-bold text-success text-end" id="so_du_the" readonly>
+                </div>
+            </div>
+        </div> -->
+
+        <div class="custom-fieldset shadow-sm rounded mt-3">
+            <h6 class="fieldset-title">Đăng ký dịch vụ & Phiếu khám</h6>
+            
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <label class="form-label">Mã ĐK Khám</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" readonly placeholder="Tự sinh">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Ngày khám</label>
+                    <input type="text" class="form-control form-control-sm readonly-field" value="{{ now_time }}" readonly>
+                </div>
+                <div class="col-md-4 d-flex align-items-end justify-content-end">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="capcuu">
+                        <label class="form-check-label text-danger fw-bold" for="capcuu">Cấp cứu</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="uutien">
+                        <label class="form-check-label" for="uutien">Ưu tiên khám</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-md-4">
+                    <label class="form-label">Danh mục dịch vụ</label>
+                    <select class="form-select form-select-sm" id="catalog_service">
+                        <option value="">-- Chọn danh mục --</option>
+                        {% for cat in catalogs %}
+                            <option value="{{ cat.catalogservice_id }}">{{ cat.catalogservice_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Dịch vụ <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="service_id">
+                        <option value="">-- Vui lòng chọn danh mục trước --</option>
+                        {% for sv in services %}
+                            <option value="{{ sv.service_id }}" 
+                                    data-catalog="{{ sv.catalogservice_id }}" 
+                                    data-price="{{ sv.unit_price }}"
+                                    style="display: none;">
+                                {{ sv.service_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Phòng khám <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" id="room_id">
+                        {% for r in rooms %}
+                            <option value="{{ r.room_id }}">{{ r.room_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-md-8">
+                    <label class="form-label">Lý do khám</label>
+                    <input type="text" class="form-control form-control-sm" id="ly_do_kham">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tình trạng khám</label>
+                    <select class="form-select form-select-sm" disabled>
+                        <option>Chờ khám</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </form>
+    </div>
+
+    <div id="view-danh-sach" style="display: none;">
+        <div class="card mb-3 border-0 shadow-sm">
+            <div class="card-body py-3">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Ngày</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="filter_date">
+                            <span class="input-group-text"><i class="fa-regular fa-calendar"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Tìm kiếm Bệnh Nhân</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="Nhập tên hoặc mã BN..." id="filter_keyword">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary btn-sm w-100"><i class="fa-solid fa-magnifying-glass"></i> TÌM KIẾM</button>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded shadow-sm">
+            <table class="table table-bordered table-hover mb-0" style="font-size: 13px;">
+                <thead class="bg-light text-secondary">
+                    <tr class="text-center align-middle">
+                        <th style="width: 40px;">STT</th>
+                        <th>Mã bệnh nhân</th>
+                        <th>Họ & tên</th>
+                        <th>Mã ĐK khám</th>
+                        <th>Thời gian tiếp nhận</th>
+                        <th style="width: 60px;">Giới tính</th>
+                        <th>Ngày sinh</th>
+                        <th>SĐT</th>
+                        <th>Trạng thái</th>
+                        <th style="width: 80px;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="table_body_ds">
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="fa-solid fa-spinner fa-spin me-2"></i> Đang tải dữ liệu...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <small class="text-muted" id="pagination_info">
+                    <i class="fa-regular fa-file-excel text-success me-1"></i> Đang tải...
+                </small>
+    
+                <nav>
+                    <ul class="pagination pagination-sm mb-0" id="pagination_links">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="view-tai-khoan" style="display: none;">
+    
+    <div id="account-alert" class="alert alert-warning text-center mt-4">
+        <i class="fa-solid fa-arrow-left"></i> Vui lòng chọn một bệnh nhân từ <b>Danh sách tiếp nhận</b> trước!
+    </div>
+
+    <div id="account-info-content" style="display: none;">
+        <div class="card mb-3 border-primary shadow-sm">
+            <div class="card-body p-2 d-flex justify-content-between align-items-center bg-light rounded">
+                <h5 class="m-0 text-primary fw-bold"><i class="fa-solid fa-id-card-clip"></i> HỒ SƠ BỆNH NHÂN</h5>
+                <div>
+                    <button class="btn btn-warning text-white me-1" onclick="enableEditMode()" id="btn-edit">
+                        <i class="fa-solid fa-pen-to-square"></i> Sửa thông tin
+                    </button>
+                    <button class="btn btn-success me-1" onclick="savePatientInfo()" id="btn-save-info" style="display: none;">
+                        <i class="fa-solid fa-floppy-disk"></i> Lưu lại
+                    </button>
+                    <button class="btn btn-secondary me-1" onclick="cancelEditMode()" id="btn-cancel-info" style="display: none;">
+                        <i class="fa-solid fa-xmark"></i> Hủy
+                    </button>
+                    
+                    <button class="btn btn-outline-success me-1" onclick="openDepositModal()">
+                        <i class="fa-solid fa-money-bill-wave"></i> Nạp tiền
+                    </button>
+                    <button class="btn btn-outline-primary me-1" onclick="printAccountTicket()">
+                        <i class="fa-solid fa-print"></i> In phiếu
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deletePatientFull()">
+                        <i class="fa-solid fa-trash-can"></i> Xóa hồ sơ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-white fw-bold text-secondary">1. THÔNG TIN HÀNH CHÍNH</div>
+                    <div class="card-body">
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Mã Bệnh Nhân</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control fw-bold" id="detail_ma_bn" readonly disabled>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Họ và tên</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control text-uppercase fw-bold text-primary" id="detail_ho_ten" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Giới tính</label>
+                            <div class="col-sm-8">
+                                <select class="form-select" id="detail_gioi_tinh" disabled>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Ngày sinh</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_ngay_sinh" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Số điện thoại</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_sdt" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">CCCD/CMT</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_cccd" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Địa chỉ</label>
+                            <div class="col-sm-8">
+                                <textarea class="form-control" id="detail_dia_chi" rows="2" readonly></textarea>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Người nhà</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_nguoi_nha" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-white fw-bold text-secondary">2. TÀI KHOẢN & THẺ TỪ</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-success">Số dư thẻ</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control fw-bold text-success fs-4 text-end" id="detail_balance" readonly disabled>
+                                <span class="input-group-text fw-bold text-success">VNĐ</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Mã Thẻ (RFID)</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control fw-bold" id="detail_ma_the" readonly disabled>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Ngày tạo thẻ</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_ngay_tao_the" readonly disabled>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Trạng thái thẻ</label>
+                            <div class="col-sm-8">
+                                <select class="form-select" id="detail_trang_thai_the" disabled>
+                                    <option value="Active">Hoạt động</option>
+                                    <option value="Locked">Đang khóa</option>
+                                    <option value="Lost">Báo mất</option>
+                                </select>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Tên đăng nhập</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control fw-bold" id="detail_username" readonly disabled>
+                            </div>
+                        </div>
+                        <div class="mb-2 row">
+                            <label class="col-sm-4 col-form-label">Mật khẩu</label>
+                            <div class="col-sm-8">
+                                <input type="text" class="form-control" id="detail_email" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div id="view-thu-tien" style="display: none;">
+    
+    <div class="card mb-3 border-primary shadow-sm">
+        <div class="card-body p-2 bg-white d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="me-3 text-center" style="width: 100px;">
+                    <img src="" id="bill_qr_code" class="img-fluid border" alt="QR Payment" style="max-height: 80px; display: none;">
+                    <i class="fa-solid fa-qrcode fa-3x text-dark" id="bill_qr_icon"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-primary" style="font-size: 1.1em;">
+                        Mã BN: <span id="bill_ma_bn" class="text-dark">---</span>
+                    </div>
+                    <div class="fw-bold text-danger text-uppercase" id="bill_ho_ten">CHƯA CHỌN BỆNH NHÂN</div>
+                    <div class="small text-muted">
+                        NS: <span id="bill_ngay_sinh">--</span> | 
+                        GT: <span id="bill_gioi_tinh">--</span> | 
+                        Tuổi: <span id="bill_tuoi">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-end">
+                <button class="btn btn-info text-white me-1" onclick="printExaminationTicketFromBill()">
+                    <i class="fa-solid fa-print"></i> IN PHIẾU
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-footer py-1 px-3 bg-light d-flex justify-content-between small fw-bold">
+            <span class="text-primary"><i class="fa-solid fa-house-medical"></i> <span id="bill_phong_kham">---</span></span>
+            <span class="text-success"><i class="fa-solid fa-user-doctor"></i> BS: <span id="bill_bac_si">---</span></span>
+            <span class="text-danger">Trạng thái: <span class="badge bg-warning text-dark" id="bill_trang_thai">---</span></span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">1. Dịch vụ chưa thanh toán</div>
+                <div class="card-body p-0">
+                    <table class="table table-bordered table-striped mb-0" style="font-size: 13px;">
+                        <thead class="bg-light text-center">
+                            <tr>
+                                <th style="width: 30px;"><input type="checkbox" id="check_all_service" checked onclick="toggleAllServices(this)"></th>
+                                <th class="text-start">Nội dung</th>
+                                <th>ĐVT</th>
+                                <th>SL</th>
+                                <th>Đơn giá</th>
+                                <th>Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bill_table_body">
+                            </tbody>
+                        <tfoot class="bg-light fw-bold">
+                            <tr>
+                                <td colspan="5" class="text-end">Tổng cộng:</td>
+                                <td colspan="2" class="text-end text-danger" id="bill_table_total">0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Thông tin phiếu thu</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Ngày thu</label>
+                        <input type="text" class="form-control form-control-sm" id="pay_date" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-primary">SỐ TIỀN THANH TOÁN</label>
+                        <input type="text" class="form-control fw-bold text-end text-primary fs-4" id="pay_total" readonly value="0">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Hình thức</label>
+                        <select class="form-select form-select-sm fw-bold" id="pay_method">
+                            <option value="cash">Tiền mặt</option>
+                            <option value="card">Thẻ thành viên</option>
+                            <option value="bank">Chuyển khoản (QR)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary w-100 py-2 fw-bold" onclick="submitPayment()">
+                        <i class="fa-solid fa-money-check-dollar"></i> THANH TOÁN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div id="print-area" class="d-none">
+    <div style="border: 1px dashed #000; padding: 20px; width: 350px; font-family: monospace;">
+        <h3 style="text-align: center; margin-bottom: 5px;">LKC CLINIC</h3>
+        <p style="text-align: center;">Phiếu Thông Tin Tài Khoản</p>
+        <hr>
+        <p><b>Bệnh nhân:</b> <span id="p_ho_ten"></span></p>
+        <p><b>Mã BN:</b> <span id="p_ma_bn"></span></p>
+        <hr>
+        <p>Thông tin đăng nhập cổng người bệnh:</p>
+        <p><b>Tài khoản:</b> <span id="p_username" style="font-size: 1.2em; font-weight: bold;"></span></p>
+        <p><b>Mật khẩu:</b> <span id="p_password" style="font-size: 1.2em; font-weight: bold;"></span></p>
+        <hr>
+        <p style="text-align: center; font-style: italic;">Vui lòng đổi mật khẩu sau khi đăng nhập.</p>
+    </div>
+    </div>
+    <div id="print-ticket-area" class="d-none">
+    <div class="ticket-container" style="font-family: 'Courier New', Courier, monospace; width: 300px; padding: 10px; border: 1px solid #000; margin: 0 auto;">
+        
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; font-weight: bold;">LKC HOSPITAL</h4>
+            <p style="margin: 0; font-size: 12px;">Đc: TP Hồ Chí Minh</p>
+            <hr style="border-top: 1px dashed #000; margin: 10px 0;">
+            <h3 style="margin: 10px 0; font-weight: bold;">PHIẾU KHÁM BỆNH</h3>
+        </div>
+
+        <div style="font-size: 14px; line-height: 1.6;">
+            <div><strong>Mã BN:</strong> <span id="p_ticket_mabn">BN000000</span></div>
+            <div><strong>Họ tên:</strong> <span id="p_ticket_hoten" style="text-transform: uppercase; font-weight: bold;">NGUYỄN VĂN A</span></div>
+            <div><strong>Năm sinh:</strong> <span id="p_ticket_namsinh">1990</span> &nbsp;-&nbsp; <strong>GT:</strong> <span id="p_ticket_gioitinh">Nam</span></div>
+            <hr style="border-top: 1px dashed #000; margin: 10px 0;">
+            
+            <div style="text-align: center; margin: 15px 0;">
+                <div style="font-size: 14px;">Phòng khám:</div>
+                <div id="p_ticket_phong" style="font-size: 18px; font-weight: bold;">PHÒNG KHÁM NỘI 1</div>
+                
+                <div style="font-size: 14px; margin-top: 10px;">Số thứ tự:</div>
+                <div id="p_ticket_stt" style="font-size: 40px; font-weight: bold; border: 2px solid #000; display: inline-block; padding: 5px 20px; margin-top: 5px;">01</div>
+            </div>
+            
+            <div style="margin-top: 10px;"><strong>Dịch vụ:</strong> <span id="p_ticket_dichvu">Khám tổng quát</span></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; font-size: 12px; font-style: italic;">
+            <p>Ngày: <span id="p_ticket_ngay">28/11/2025 08:30</span></p>
+            <p>Vui lòng đến trước cửa phòng khám và chờ gọi số.</p>
+            <p>Xin cảm ơn!</p>
+        </div>
+    </div>
+</div>
+    
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{{ url_for('static', filename='js/tiep_don.js') }}"></script>
+{% endblock %}

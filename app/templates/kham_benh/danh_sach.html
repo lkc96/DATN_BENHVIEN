@@ -1,0 +1,701 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý khám bệnh{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <ul class="nav nav-tabs mb-3 border-bottom-0">
+        <li class="nav-item">
+            <a class="nav-link active" href="javascript:void(0)" id="tab-ds" onclick="switchTab('danh-sach')">DANH SÁCH</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="tab-kham" onclick="switchTab('kham-lam-sang')">KHÁM LÂM SÀNG</a>
+        </li>
+        <li class="nav-item"><a class="nav-link text-secondary" href="#">ĐĂNG KÝ KHÁM</a></li>
+        <li class="nav-item"><a class="nav-link text-secondary" href="javascript:void(0)" id="tab-tt" onclick="switchTab('thu-tien')">THU TIỀN</a></li>
+    </ul>
+    <div id="view-danh-sach">
+        <div class="card mb-3 border-0 shadow-sm">
+        <div class="card-body py-2">
+            <div class="row align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-muted">Ngày khám</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" id="filter_date">
+                        <span class="input-group-text"><i class="fa-regular fa-calendar"></i></span>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Phòng khám</label>
+    
+                    {% if current_user.staff and current_user.role.role_name not in ['Admin', 'Quản trị viên'] %}
+                    <input type="text" class="form-control form-control-sm bg-white fw-bold text-primary" 
+                            value="{{ current_user.staff.room.room_name if current_user.staff.room else 'Chưa phân phòng' }}" readonly>
+        
+                    <input type="hidden" id="filter_room" value="{{ current_user.staff.room_id }}">
+    
+                    {% else %}
+                        <select class="form-select form-select-sm" id="filter_room">
+                            <option value="all">-- Tất cả --</option>
+                    {% for room in rooms %}
+                            <option value="{{ room.room_id }}">{{ room.room_name }}</option>
+                    {% endfor %}
+                        </select>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">Tìm kiếm BN</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Nhập tên, mã BN..." id="filter_keyword">
+                </div>
+
+                <div class="col-md-1">
+                    <button class="btn btn-primary btn-sm w-100 fw-bold" onclick="loadExamList()">
+                        <a><i class="fa-solid fa-magnifying-glass"></i></a>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded shadow-sm">
+        <table class="table table-bordered table-hover mb-0" style="font-size: 13px;">
+            <thead class="bg-light text-secondary">
+                <tr class="text-center align-middle">
+                    <th>Số ĐK khám</th>
+                    <th>Thời gian tiếp nhận</th>
+                    <th style="width: 80px;">Thứ tự khám</th>
+                    <th>Họ và tên</th>
+                    <th>Mã bệnh nhân</th>
+                    <th style="width: 60px;">Giới tính</th>
+                    <th>Năm sinh</th>
+                    
+                    <th>Phòng khám</th>
+                    <th style="width: 100px;">Trạng thái</th>
+                    <th style="width: 80px;">Hành động</th>
+                </tr>
+        
+            </thead>
+            <tbody id="exam_table_body">
+                </tbody>
+        </table>
+        
+        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <small class="text-muted">
+                <i class="fa-regular fa-file-excel text-success me-1"></i> 
+                <span id="info_count">Đang tải...</span>
+            </small>
+    
+            <nav>
+                <ul class="pagination pagination-sm mb-0 justify-content-end" id="pagination_links">
+                </ul>
+            </nav>
+        </div>
+    </div>
+    </div>
+
+    <div id="view-kham-lam-sang" style="display: none;">
+        <input type="hidden" id="store_dia_chi">
+        
+    <div class="card mb-2 border-primary shadow-sm">
+        <div class="card-body p-2 d-flex justify-content-between align-items-center bg-white">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fa-solid fa-qrcode fa-3x text-dark"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-primary" style="font-size: 1.1em;">
+                        Mã BN: <span id="kham_ma_bn" class="text-dark">---</span>
+                    </div>
+                    <div class="fw-bold text-danger text-uppercase" id="kham_ho_ten">---</div>
+                    <div class="small text-muted">
+                        NS: <span id="kham_ngay_sinh">--</span> | 
+                        GT: <span id="kham_gioi_tinh">--</span> | 
+                        Tuổi: <span id="kham_tuoi">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-end">
+                <button class="btn btn-primary me-1" onclick="saveExamination()">
+                    <i class="fa-solid fa-floppy-disk"></i> LƯU
+                </button>
+                <button class="btn btn-success me-1" onclick="finishExamination()"><i class="fa-solid fa-check"></i>KẾT THÚC KHÁM</button>
+                <button class="btn btn-danger me-1"><i class="fa-solid fa-ban"></i> HỦY KHÁM</button>
+                <button class="btn btn-info text-white" onclick="printGlobal()">
+                    <i class="fa-solid fa-print"></i> IN PHIẾU
+                </button>
+            </div>
+        </div>
+        <div class="card-footer py-1 px-3 bg-primary bg-opacity-10 d-flex justify-content-between small fw-bold">
+            <span class="text-primary"><i class="fa-solid fa-house-medical"></i> <span id="kham_phong">---</span></span>
+            <span class="text-primary"><i class="fa-solid fa-user-doctor"></i> 
+                <span id="store_bac_si">
+                    {{ current_user.staff.expertise.expertise_name }}. {{ current_user.staff.full_name if current_user.staff else current_user.username }}
+                </span>
+            </span>
+            
+        </div>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-md-2">
+            <div class="list-group shadow-sm" style="font-size: 13px;">
+                <div class="list-group-item fw-bold bg-light text-uppercase">KHÁM BỆNH</div>
+                <a href="javascript:void(0)" class="list-group-item list-group-item-action active fw-bold" 
+                        id="menu-kham-ls" onclick="switchSubTab('kham-ls')">
+                        Khám lâm sàng
+                </a>
+        
+                <a href="javascript:void(0)" class="list-group-item list-group-item-action" 
+                        id="menu-chi-dinh" onclick="switchSubTab('chi-dinh')">
+                        Chỉ định dịch vụ
+                </a>
+                <a href="javascript:void(0)" class="list-group-item list-group-item-action" 
+                    id="menu-don-thuoc" onclick="switchSubTab('don-thuoc')">
+                    Đơn thuốc
+                </a>
+                <a href="javascript:void(0)" class="list-group-item list-group-item-action" 
+                    id="menu-thu-tien" onclick="switchSubTab('thu-tien')">
+                    Thu tiền dịch vụ
+                </a>
+                <a href="#" class="list-group-item list-group-item-action">Kết quả CLS</a>
+                <a href="#" class="list-group-item list-group-item-action">Hồ sơ bệnh án</a>
+            </div>
+        </div>
+
+        <div class="col-md-10">
+            <div id="panel-kham-lam-sang" class="h-100">
+                <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="row mb-3 gx-2 align-items-end">
+                        <div class="col">
+                            <label class="form-label small fw-bold">Cân nặng (kg)</label>
+                            <input type="number" class="form-control form-control-sm" id="sh_can_nang" oninput="calcBMI()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Chiều cao (cm)</label>
+                            <input type="number" class="form-control form-control-sm" id="sh_chieu_cao" oninput="calcBMI()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Nhiệt độ (°C)</label>
+                            <input type="number" class="form-control form-control-sm" id="sh_nhiet_do">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Nhịp thở</label>
+                            <input type="number" class="form-control form-control-sm" id="sh_nhip_tho" placeholder="lần/phút">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Mạch</label>
+                            <input type="number" class="form-control form-control-sm" id="sh_mach" placeholder="lần/phút">
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">Huyết áp</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="sh_huyet_ap1" placeholder="Tâm thu">
+                                <span class="input-group-text">/</span>
+                                <input type="text" class="form-control" id="sh_huyet_ap2" placeholder="Tâm trương">
+                            </div>
+                        </div>
+                        <div class="col">
+                            <label class="form-label small fw-bold">BMI</label>
+                            <input type="text" class="form-control form-control-sm bg-light fw-bold" id="sh_bmi" readonly>
+                        </div>
+                    </div>
+
+                    <hr class="my-2">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Lý do khám</label>
+                                <input type="text" class="form-control form-control-sm bg-primary bg-opacity-10" id="kham_ly_do">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Chẩn đoán sơ bộ</label>
+                                <textarea class="form-control form-control-sm" id="kham_chan_doan_so_bo" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="mb-2 position-relative">
+                                <label class="form-label small fw-bold">Bệnh chính (ICD-10)</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="icd_main_input" placeholder="Gõ mã hoặc tên bệnh (VD: J00)..." autocomplete="off">
+                                </div>
+                                <ul class="list-group position-absolute w-100 shadow-sm" id="icd_main_list" style="z-index: 1000; display: none; max-height: 250px; overflow-y: auto;"></ul>
+                            </div>
+
+                            <div class="mb-2 position-relative">
+                                <label class="form-label small fw-bold">Bệnh phụ</label>
+                                <input type="text" class="form-control form-control-sm" id="icd_sub_input" placeholder="Gõ mã hoặc tên bệnh..." autocomplete="off">
+                                <ul class="list-group position-absolute w-100 shadow-sm" id="icd_sub_list" style="z-index: 1000; display: none; max-height: 250px; overflow-y: auto;"></ul>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Hướng xử lý</label>
+                                <textarea class="form-control form-control-sm" id="kham_huong_xu_ly" rows="2"></textarea>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Xử trí</label>
+                                    <select class="form-select form-select-sm" id="kham_xu_tri">
+                                        <option>Cấp toa cho về</option>
+                                        <option>Nhập viện</option>
+                                        <option>Chuyển viện</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Ngày hẹn</label>
+                                    <input type="date" class="form-control form-control-sm" id="kham_ngay_hen">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 border-start">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Bệnh sử</label>
+                                <textarea class="form-control form-control-sm" id="kham_benh_su" rows="2"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Tiền sử</label>
+                                <textarea class="form-control form-control-sm" id="kham_tien_su" rows="2"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Khám toàn thân</label>
+                                <textarea class="form-control form-control-sm" id="kham_toan_than" rows="2"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Khám bộ phận</label>
+                                <textarea class="form-control form-control-sm" id="kham_bo_phan" rows="2"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold">Lời dặn bác sĩ</label>
+                                <textarea class="form-control form-control-sm" id="kham_loi_dan" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+
+            <div id="panel-chi-dinh" style="display: none;">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="chk_all" onchange="toggleAllFilters(this)">
+                                    <label class="form-check-label small" for="chk_all">Chọn tất cả</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="chk_xn" value="XN" checked onchange="filterServiceDropdown()">
+                                    <label class="form-check-label small " for="chk_xn">Xét nghiệm</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="chk_cdha" value="CDHA" checked onchange="filterServiceDropdown()">
+                                    <label class="form-check-label small " for="chk_cdha">CĐHA</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="chk_pttt" value="PTTT" onchange="filterServiceDropdown()">
+                                    <label class="form-check-label small" for="chk_pttt">PTTT</label>
+                                </div>
+                            </div>
+                            
+                        </div>
+
+                        <div class="row g-2 mb-3 bg-light p-2 rounded border">
+                            <div class="col-md-2">
+                                <label class="small fw-bold mb-1">Chọn phiếu</label>
+                                <select class="form-select form-select-sm" id="cd_ticket_type">
+                                    <option value="new" selected>Thêm phiếu mới</option>
+                                </select>
+                        </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold">Chọn dịch vụ</label>
+                                <select class="form-select form-select-sm" id="cd_service_id">
+                                    <option value="">-- Tìm dịch vụ --</option>
+                                    </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold">Phòng thực hiện</label>
+                                <select class="form-select form-select-sm" id="cd_room_id">
+                                    <option>>-- Chọn phòng --</option>
+                                    
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold">Đơn giá</label>
+                                <input type="text" class="form-control form-control-sm text-end text-danger fw-bold" id="cd_price" readonly value="0">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="small fw-bold">SL</label>
+                                <div class="input-group input-group-sm">
+                                     <input type="number" class="form-control form-control-sm text-center" id="cd_qty" value="1">
+                                    <button class="btn btn-success" onclick="addServiceOrder()"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                               
+                            </div>
+                            
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover mb-0" style="font-size: 13px;">
+                                <thead class="bg-light text-center">
+                                    <tr>
+                                        <th style="width: 50px;">STT</th>
+                                        <th>Tên dịch vụ</th>
+                                        <th style="width: 50px;">SL</th>
+                                        <th>Giá</th>
+                                        <th>Thành tiền</th>
+                                        <th>Trạng thái</th>
+                                        
+                                    </tr>
+                                </thead>
+                                <tbody id="cd_table_body">
+                                    </tbody>
+                                <tfoot class="bg-light fw-bold">
+                                    <tr>
+                                        <td colspan="4" class="text-end">Tổng: <span id="cd_total_count">0</span> Dịch vụ</td>
+                                        <td colspan="4" class="text-end text-danger">Số tiền: <span id="cd_total_amount">0</span> đ</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            <div id="panel-thu-tien" class="h-100" style="display: none;">
+        
+
+    <div class="row h-100">
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">
+                    1. Dịch vụ chưa thanh toán
+                </div>
+                <div class="card-body p-0 table-responsive">
+                    <table class="table table-bordered table-striped mb-0" style="font-size: 13px;">
+                        <thead class="bg-light text-center">
+                            <tr>
+                                <th style="width: 30px;"><input type="checkbox" checked disabled></th>
+                                <th class="text-start">Nội dung</th>
+                                <th style="width: 60px;">ĐVT</th>
+                                <th style="width: 50px;">SL</th>
+                                <th>Đơn giá</th>
+                                <th>Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sub_bill_body">
+                            </tbody>
+                        <tfoot class="bg-light fw-bold">
+                            <tr>
+                                <td colspan="5" class="text-end">Tổng cộng:</td>
+                                <td class="text-end text-danger" id="sub_bill_total">0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-bold">
+                    Thông tin phiếu thu
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Ngày thu</label>
+                        <input type="text" class="form-control form-control-sm" id="pay_date_sub" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-primary">SỐ TIỀN THANH TOÁN</label>
+                        <input type="text" class="form-control fw-bold text-end text-primary fs-3" id="sub_pay_total" readonly value="0">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Hình thức</label>
+                        <select class="form-select form-select-sm fw-bold" id="sub_pay_method">
+                            <option value="Tiền mặt">Tiền mặt</option>
+                            <option value="Thẻ">Thẻ thành viên</option>
+                            <option value="CK Ngân hàng">Chuyển khoản</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary w-100 py-2 fw-bold" onclick="submitSubPayment()">
+                        <i class="fa-solid fa-money-check-dollar"></i> THANH TOÁN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+            </div>
+            <div id="panel-don-thuoc" class="h-100" style="display: none;">
+    <div class="card shadow-sm h-100">
+        <div class="card-body">
+            <h5 class="text-primary fw-bold mb-3"><i class="fa-solid fa-pills"></i> KÊ ĐƠN THUỐC</h5>
+
+            <div class="bg-light p-3 rounded border mb-3">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-5">
+                        <label class="small fw-bold">Chọn thuốc</label>
+                        <select class="form-select form-select-sm" id="dt_thuoc_id">
+                            <option value="">-- Chọn thuốc --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-primary">Số ngày</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control fw-bold text-primary dt-lieu-input" id="dt_so_ngay" value="1" min="1">
+                            <span class="input-group-text">ngày</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Đơn vị tính</label>
+                        <input type="text" class="form-control form-control-sm bg-white" id="dt_dvt" readonly>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small fw-bold text-primary">Số lượng cấp</label>
+                        <input type="number" class="form-control form-control-sm text-center fw-bold text-primary" id="dt_so_luong" value="0" readonly>
+                    </div>
+                </div>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-1">
+                        <label class="small fw-bold">Sáng</label>
+                        <input type="text" class="form-control form-control-sm text-center dt-lieu" id="dt_sang">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="small fw-bold">Trưa</label>
+                        <input type="text" class="form-control form-control-sm text-center dt-lieu" id="dt_trua">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="small fw-bold">Chiều</label>
+                        <input type="text" class="form-control form-control-sm text-center dt-lieu" id="dt_chieu">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="small fw-bold">Tối</label>
+                        <input type="text" class="form-control form-control-sm text-center dt-lieu" id="dt_toi">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="small fw-bold">Cách dùng (Ghi chú)</label>
+                        <input type="text" class="form-control form-control-sm" id="dt_cach_dung" placeholder="VD: Uống sau ăn 30 phút...">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <button class="btn btn-success btn-sm w-100 fw-bold" onclick="addMedicineToTable()">
+                            <i class="fa-solid fa-plus"></i> THÊM
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                <table class="table table-bordered table-hover mb-0" style="font-size: 13px;">
+                    <thead class="bg-primary text-white text-center sticky-top">
+                        <tr>
+                            <th style="width: 40px;">STT</th>
+                            <th>Tên thuốc</th>
+                            <th style="width: 60px;">ĐVT</th>
+                            <th style="width: 250px;">Liều dùng (S-T-C-T)</th>
+                            <th style="width: 60px;">SL</th>
+                            <th style="width: 50px;">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dt_table_body">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="mt-3">
+                <label class="small fw-bold text-primary">Lời dặn của bác sĩ</label>
+                <textarea class="form-control" id="dt_loi_dan" rows="2" placeholder="VD: Kiêng đồ cay nóng, tái khám sau 7 ngày..."></textarea>
+            </div>
+        </div>
+    </div>
+            </div>
+        </div>
+    <div id="print-service-area" class="d-none">
+    <div class="print-container" style="font-family: 'Times New Roman'; width: 100%; padding: 0;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <div style="width: 60%;">
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 50px; height: 50px; border: 1px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                        <span style="font-weight: bold; font-size: 20px;">+</span>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-weight: bold; text-transform: uppercase;">BỆNH VIỆN ĐA KHOA X</h4>
+                        <p style="margin: 0; font-size: 12px;">ĐT: 024.1234.5678</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="width: 40%; text-align: right;">
+                <svg id="barcode_dk_top" style="height: 40px;"></svg>
+                <div style="font-weight: bold; font-size: 13px; margin-top: -3px; padding-right: 5px;">
+                    Mã ĐK: <span id="p_sv_madk_top">...</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 5px;">
+            <h2 style="margin: 0; font-weight: bold; text-transform: uppercase;" id="p_sv_title">PHIẾU CHỈ ĐỊNH</h2>
+            <div style="font-weight: bold; font-size: 16px; margin-top: 5px;" id="p_sv_phong_thuc_hien">...</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 12px; font-style: italic; text-align: left;">Số phiếu:</div>
+                <svg id="barcode_phieu" style="height: 40px;"></svg>
+                <div style="font-size: 12px; font-weight: bold; margin-top: -3px;" id="p_sv_maphieu_text">...</div>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0;">Mã bệnh nhân: <b id="p_sv_mabn_text">...</b></p>
+            </div>
+        </div>
+
+        <div style="border: 1px solid #000; display: flex; margin-bottom: 15px;">
+            <div style="border-right: 1px solid #000; padding: 5px 10px; display: flex; align-items: center; width: 100px; justify-content: center;">
+                <span style="font-weight: bold; margin-right: 5px;">STT:</span>
+                <span style="font-weight: bold; font-size: 24px;" id="p_sv_stt">...</span>
+            </div>
+            <div style="padding: 5px 10px; display: flex; align-items: center; background-color: #f8f9fa; width: 100%;">
+                <span style="margin-right: 10px;">Thực hiện tại:</span>
+                <span style="font-weight: bold; text-transform: uppercase;" id="p_sv_phong_thuc_hien_box">...</span>
+            </div>
+        </div>
+
+        <div style="line-height: 1.5; margin-bottom: 15px;">
+            <div>Họ tên: <b id="p_sv_hoten" style="text-transform: uppercase; font-size: 1.1em;">...</b> - Ngày sinh: <span id="p_sv_namsinh">...</span> - Giới tính: <span id="p_sv_gioitinh">...</span></div>
+            <div>Địa chỉ: <span id="p_sv_diachi">...</span></div>
+            <div>Chẩn đoán: <span id="p_sv_chandoan">...</span></div>
+            <div>Bác sĩ chỉ định: <span id="p_sv_bacsi">...</span></div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #000; padding: 5px; width: 40px; text-align: center;">STT</th>
+                    <th style="border: 1px solid #000; padding: 5px;">Tên dịch vụ / Yêu cầu</th>
+                    <th style="border: 1px solid #000; padding: 5px; width: 40px; text-align: center;">SL</th>
+                    <th style="border: 1px solid #000; padding: 5px;">Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody id="p_sv_tbody"></tbody>
+        </table>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <div style="text-align: center; width: 40%;">
+                <p style="margin: 0; font-style: italic;">Ngày <span id="p_sv_ngay">...</span> tháng <span id="p_sv_thang">...</span> năm <span id="p_sv_nam">...</span></p>
+                <p style="margin: 5px 0; font-weight: bold;">BÁC SĨ CHỈ ĐỊNH</p>
+                <div style="height: 60px;"></div>
+                <p style="margin: 0; font-weight: bold;" id="p_sv_bs_ky">...</p>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div id="print-prescription-template" style="display: none;">
+    <div class="prescription-box mx-auto" style="max-width: 800px; font-family: 'Times New Roman', serif;">
+        
+        <div class="row mb-4">
+            <div class="col-8">
+                <h5 class="mb-0" id="p_so_y_te">SỞ Y TẾ TP. HỒ CHÍ MINH</h5>
+                <h5 class="fw-bold" id="p_ten_bv">BỆNH VIỆN LKC</h5>
+                <p class="mb-0">Địa chỉ: <span id="p_dia_chi_bv">...</span></p>
+                <p>Điện thoại: <span id="p_sdt_bv">...</span></p>
+            </div>
+            <div class="col-4 text-end">
+                <p><strong>Mã BN:</strong> <span id="p_ma_bn_header">...</span></p>
+                <p><strong>Mã đơn thuốc:</strong> <span id="p_ma_don">...</span></p>
+            </div>
+        </div>
+
+        <h3 class="text-center header-title fw-bold" style="font-size: 24px;">ĐƠN THUỐC</h3>
+
+        <div class="mt-3">
+            <table class="table table-borderless info-table" style="width: 100%; font-size: 15px;">
+                <tr>
+                    <td style="width: 20%"><strong>Họ tên người bệnh:</strong></td>
+                    <td style="width: 40%"><span id="p_ho_ten" class="fw-bold text-uppercase">...</span></td>
+                    <td style="width: 15%"><strong>Mã BN:</strong></td>
+                    <td style="width: 25%"><span id="p_ma_bn">...</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Số CCCD:</strong></td>
+                    <td><span id="p_cccd">...</span></td>
+                    <td><strong>Giới tính:</strong></td>
+                    <td><span id="p_gioi_tinh">...</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Ngày sinh:</strong></td>
+                    <td><span id="p_ngay_sinh">...</span></td>
+                    <td><strong>Cân nặng:</strong></td>
+                    <td><span id="p_can_nang">...</span> kg</td>
+                </tr>
+                <tr>
+                    <td><strong>Số thẻ BHYT:</strong></td>
+                    <td colspan="3"><span id="p_the_bhyt">...</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Địa chỉ:</strong></td>
+                    <td colspan="3"><span id="p_dia_chi">...</span></td>
+                </tr>
+            </table>
+            <div class="row mb-4">
+                <div class="col-2">
+                    <h5 class="section-title fw-bold" style="font-size: 16px">Chẩn đoán:</h5>
+                </div>
+                <div class="col-10">
+                    <p><strong id="p_chan_doan">...</strong></p>
+
+                </div>
+            </div>
+            
+            <h5 class="section-title fw-bold mt-3" style="font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Đơn thuốc:</h5>
+
+            <ol id="p_list_thuoc" style="padding-left: 20px; font-size: 15px;">
+                </ol>
+
+            <div class="mt-4 border-top pt-2">
+                <p>
+                    <strong>Sàng lọc dinh dưỡng:</strong> 
+                    CN: <span id="p_sl_can_nang">...</span> kg; 
+                    CC: <span id="p_sl_chieu_cao">...</span> cm; 
+                    BMI: <span id="p_sl_bmi">...</span> — 
+                    "<span id="p_ket_luan_dinh_duong">TTDD bình thường</span>"
+                </p>
+            </div>
+            
+            <div class="mt-2">
+                 <p><strong>Lời dặn:</strong> <span id="p_loi_dan" style="font-style: italic;">...</span></p>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <div class="text-center">
+                    <p class="fw-bold">Bệnh nhân</p>
+                    <p class="fst-italic small">(Ký, ghi rõ họ tên)</p>
+                </div>
+                <div class="text-center">
+                    <p class="fst-italic">Ngày <span id="p_ngay_in">...</span> tháng <span id="p_thang_in">...</span> năm <span id="p_nam_in">...</span></p>
+                    <p class="fw-bold">Bác sĩ khám bệnh</p>
+                    <br><br><br>
+                    <p class="fw-bold" id="p_bac_si">...</p>
+                </div>
+            </div>
+
+            <p class="mt-4 fst-italic">Khám lại xin mang theo đơn này, ngày tái khám: <strong id="p_ngay_tai_kham">...</strong></p>
+        </div>
+    </div>
+    </div>
+   
+    
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{{ url_for('static', filename='js/kham_benh.js') }}"></script>
+{% endblock %}
