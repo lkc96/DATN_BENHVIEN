@@ -791,35 +791,80 @@ function deleteServiceOrder(orderId) {
 
 
 // =========================================================
-// LOGIC IN PHIẾU CHỈ ĐỊNH (CẬP NHẬT MẪU MỚI)
+// LOGIC IN PHIẾU CHỈ ĐỊNH (ĐÃ SỬA: LẤY STT THẬT TỪ API)
 // =========================================================
+
+// Hàm 1: Kiểm tra và gọi API lấy số
 function printServiceOrder() {
     var ticketCode = $('#cd_ticket_type').val();
     
+    // Validate dữ liệu
     if (ticketCode === 'new' || !ticketCode) {
         alert("Vui lòng chọn một phiếu đã lưu để in!");
         return;
     }
     
-    if (currentTicketServices.length === 0) {
+    if (typeof currentTicketServices === 'undefined' || currentTicketServices.length === 0) {
         alert("Phiếu này trống!");
         return;
     }
-    // currentExamId là biến toàn cục lưu ID phiên khám hiện tại
-    var maDK = "DK" + String(currentExamId).padStart(9, '0');
-    // 1. XÁC ĐỊNH TIÊU ĐỀ DỰA TRÊN MÃ PHIẾU (Prefix)
-    var title = "PHIẾU CHỈ ĐỊNH DỊCH VỤ";
-    var roomExecute = "Phòng chức năng"; // Tạm thời giả định
 
+    // --- BẮT ĐẦU SỬA: GỌI AJAX LẤY STT ---
+    // Hiển thị loading nhẹ (nếu muốn) hoặc disable nút in để tránh bấm nhiều lần
+    
+    $.ajax({
+        url: '/api/kham-benh/lay-stt-in', // Gọi API Python vừa viết
+        type: 'GET',
+        data: { ticket_code: ticketCode },
+        success: function(response) {
+            // Lấy dữ liệu thật từ Server trả về
+            // Nếu API báo lỗi hoặc không có số, ta để STT là rỗng hoặc 1 tùy ý
+            var realSTT = (response && response.success) ? response.stt : ''; 
+            var realRoomName = (response && response.success && response.room_name) ? response.room_name : "";
+
+            // Gọi hàm thực hiện in với dữ liệu thật
+            executePrint(ticketCode, realSTT, realRoomName);
+        },
+        error: function(err) {
+            console.error(err);
+            alert("Không kết nối được server để lấy số thứ tự! Sẽ in với STT trống.");
+            // Vẫn cho in nhưng STT để trống
+            executePrint(ticketCode, '', ''); 
+        }
+    });
+}
+
+// Hàm 2: Thực hiện vẽ mẫu in và mở cửa sổ (Được tách ra để gọi sau khi có API)
+function executePrint(ticketCode, stt, dbRoomName) {
+    // currentExamId là biến toàn cục
+    var maDK = "DK" + String(currentExamId).padStart(9, '0');
+    
+    // 1. XÁC ĐỊNH TIÊU ĐỀ & PHÒNG THỰC HIỆN
+    var title = "PHIẾU CHỈ ĐỊNH DỊCH VỤ";
+    
+    // Ưu tiên lấy tên phòng từ Database trả về. 
+    // Nếu DB không trả về (lỗi), dùng logic cũ để đoán tên phòng.
+    var roomExecute = dbRoomName; 
+
+    if (!roomExecute) {
+        if (ticketCode.startsWith("XN")) {
+            roomExecute = "Phòng Xét Nghiệm";
+        } else if (ticketCode.startsWith("CDHA")) {
+            roomExecute = "Phòng X-Quang / Siêu Âm";
+        } else if (ticketCode.startsWith("PTTT")) {
+            roomExecute = "Phòng Thủ Thuật";
+        } else {
+            roomExecute = "Phòng chức năng";
+        }
+    }
+
+    // Xác định Tiêu đề dựa trên mã phiếu
     if (ticketCode.startsWith("XN")) {
         title = "PHIẾU YÊU CẦU XÉT NGHIỆM";
-        roomExecute = "Phòng Xét Nghiệm";
     } else if (ticketCode.startsWith("CDHA")) {
         title = "PHIẾU CHẨN ĐOÁN HÌNH ẢNH";
-        roomExecute = "Phòng X-Quang / Siêu Âm";
     } else if (ticketCode.startsWith("PTTT")) {
         title = "PHIẾU PHẪU THUẬT THỦ THUẬT";
-        roomExecute = "Phòng Thủ Thuật";
     }
 
     // 2. CHUẨN BỊ DỮ LIỆU
@@ -836,36 +881,42 @@ function printServiceOrder() {
         chan_doan: $('#kham_chan_doan_so_bo').val() + ' ' + $('#icd_main_input').val(),
         bac_si: $('#store_bac_si').val(),
         
-        // Giả sử STT lấy tạm từ biến toàn cục hoặc random (vì API get_services_by_ticket chưa trả về STT của phòng CLS)
-        stt: Math.floor(Math.random() * 20) + 1 
+        // --- SỬ DỤNG STT THẬT TỪ API ---
+        stt: stt 
     };
 
     // 3. MỞ CỬA SỔ IN (CẤU HÌNH CSS MỚI)
     var win = window.open('', '', 'height=800,width=1000');
-    var template = document.getElementById('print-service-area').innerHTML;
+    
+    // Lấy mẫu HTML
+    var templateArea = document.getElementById('print-service-area');
+    var template = templateArea ? templateArea.innerHTML : "<h1>Lỗi: Không tìm thấy mẫu in</h1>";
     
     win.document.write('<html><head><title>In Phiếu</title>');
     
     // --- CSS QUAN TRỌNG ĐỂ FULL KHỔ GIẤY ---
     win.document.write('<style>');
     win.document.write(`
-        @page { size: A4; margin: 15mm; } /* Cấu hình khổ giấy in và lề máy in */
+        @page { size: A4; margin: 10mm; } /* Căn lề 10mm cho tiết kiệm giấy */
         body { 
             font-family: 'Times New Roman', serif; 
             margin: 0; 
             padding: 0;
         }
         .print-container { 
-            width: 100%;       /* Chiếm hết chiều rộng */
-            max-width: 100%;   /* Bỏ giới hạn max-width cũ */
+            width: 100%;       
+            max-width: 100%;   
             box-sizing: border-box;
         }
-        table { width: 100%; border-collapse: collapse; } /* Bảng full rộng */
+        table { width: 100%; border-collapse: collapse; } 
         th, td { border: 1px solid #000; padding: 6px; }
         
         /* Căn chỉnh header */
         .header-flex { display: flex; justify-content: space-between; align-items: flex-start; }
-        .barcode-box { text-align: right; min-width: 250px; } /* Đẩy barcode sang phải */
+        .barcode-box { text-align: right; min-width: 250px; } 
+        
+        /* CSS cho số STT to rõ */
+        .stt-box { font-size: 24px; font-weight: bold; border: 2px solid #000; padding: 5px 10px; display: inline-block; }
     `);
     win.document.write('</style>');
     
@@ -882,74 +933,83 @@ function printServiceOrder() {
     
     // 4. ĐIỀN DỮ LIỆU VÀO CỬA SỔ MỚI (DOM CỦA WIN)
     var doc = win.document;
-    doc.getElementById('p_sv_madk_top').innerText = data.ma_dk;
-    // Header & Barcode Data
-    doc.getElementById('p_sv_title').innerText = data.title;
-    doc.getElementById('p_sv_phong_thuc_hien').innerText = $('#kham_phong').text(); // Phòng khám hiện tại
-    doc.getElementById('p_sv_mabn_text').innerText = data.ma_bn;
-    doc.getElementById('p_sv_maphieu_text').innerText = data.ma_phieu;
     
-    // Box STT & Phòng thực hiện
-    doc.getElementById('p_sv_stt').innerText = data.stt;
-    doc.getElementById('p_sv_phong_thuc_hien_box').innerText = data.phong_thuc_hien;
+    // Helper check null để tránh lỗi JS nếu ID không tồn tại
+    function setText(id, val) {
+        var el = doc.getElementById(id);
+        if(el) el.innerText = val || '';
+    }
+
+    setText('p_sv_madk_top', data.ma_dk);
+    setText('p_sv_title', data.title);
+    setText('p_sv_phong_thuc_hien', $('#kham_phong').text()); // Phòng khám chỉ định
+    setText('p_sv_mabn_text', data.ma_bn);
+    setText('p_sv_maphieu_text', data.ma_phieu);
+    
+    // Điền STT và Phòng thực hiện (QUAN TRỌNG)
+    setText('p_sv_stt', data.stt); 
+    setText('p_sv_phong_thuc_hien_box', data.phong_thuc_hien);
 
     // Hành chính
-    doc.getElementById('p_sv_hoten').innerText = data.ho_ten;
-    doc.getElementById('p_sv_namsinh').innerText = data.nam_sinh;
-    doc.getElementById('p_sv_gioitinh').innerText = data.gioi_tinh;
-    doc.getElementById('p_sv_diachi').innerText = data.dia_chi;
-    doc.getElementById('p_sv_chandoan').innerText = data.chan_doan;
-    doc.getElementById('p_sv_bacsi').innerText = data.bac_si;
-    doc.getElementById('p_sv_bs_ky').innerText = data.bac_si;
+    setText('p_sv_hoten', data.ho_ten);
+    setText('p_sv_namsinh', data.nam_sinh);
+    setText('p_sv_gioitinh', data.gioi_tinh);
+    setText('p_sv_diachi', data.dia_chi);
+    setText('p_sv_chandoan', data.chan_doan);
+    setText('p_sv_bacsi', data.bac_si);
+    setText('p_sv_bs_ky', data.bac_si);
 
     // Ngày tháng
     var now = new Date();
-    doc.getElementById('p_sv_ngay').innerText = now.getDate();
-    doc.getElementById('p_sv_thang').innerText = now.getMonth() + 1;
-    doc.getElementById('p_sv_nam').innerText = now.getFullYear();
+    setText('p_sv_ngay', now.getDate());
+    setText('p_sv_thang', now.getMonth() + 1);
+    setText('p_sv_nam', now.getFullYear());
 
     // Bảng dịch vụ
     var tbody = doc.getElementById('p_sv_tbody');
-    tbody.innerHTML = ''; // Xóa mẫu
-    $.each(currentTicketServices, function(i, item) {
-        var row = `<tr>
-            <td style="border: 1px solid #000; text-align: center; padding: 5px;">${i+1}</td>
-            <td style="border: 1px solid #000; padding: 5px;"><b>${item.service_name}</b></td>
-            <td style="border: 1px solid #000; text-align: center; padding: 5px;">${item.quantity}</td>
-            <td style="border: 1px solid #000; padding: 5px;">${item.description || ''}</td>
-        </tr>`;
-        tbody.innerHTML += row;
-    });
+    if (tbody) {
+        tbody.innerHTML = ''; // Xóa mẫu
+        $.each(currentTicketServices, function(i, item) {
+            var row = `<tr>
+                <td style="border: 1px solid #000; text-align: center; padding: 5px;">${i+1}</td>
+                <td style="border: 1px solid #000; padding: 5px;"><b>${item.service_name}</b></td>
+                <td style="border: 1px solid #000; text-align: center; padding: 5px;">${item.quantity}</td>
+                <td style="border: 1px solid #000; padding: 5px;">${item.description || ''}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
 
     win.document.close();
     win.focus();
 
-    // 5. TẠO MÃ VẠCH ĐẸP (CONFIG MỚI)
+    // 5. TẠO MÃ VẠCH VÀ IN
     setTimeout(function() {
         if(win.JsBarcode) {
-            
-            // --- BARCODE GÓC PHẢI (MÃ ĐK) ---
-            win.JsBarcode("#barcode_dk_top", data.ma_dk, {
-                format: "CODE128",
-                width: 1.5,       // [QUAN TRỌNG] Giảm độ rộng vạch cho gọn (Mặc định là 2)
-                height: 35,       // [QUAN TRỌNG] Giảm chiều cao (Mặc định là 100)
-                displayValue: false, // Ẩn số dưới vạch (để mình tự hiển thị HTML cho đẹp)
-                margin: 0         // Bỏ lề
-            });
+            try {
+                // --- BARCODE GÓC PHẢI (MÃ ĐK) ---
+                if (doc.getElementById("barcode_dk_top")) {
+                    win.JsBarcode("#barcode_dk_top", data.ma_dk, {
+                        format: "CODE128", width: 1.5, height: 35, displayValue: false, margin: 0
+                    });
+                }
 
-            // --- BARCODE GÓC TRÁI (MÃ PHIẾU) ---
-            win.JsBarcode("#barcode_phieu", data.ma_phieu, {
-                format: "CODE128",
-                width: 1.3,       // Phiếu mã dài nên cho mảnh hơn nữa
-                height: 35,
-                displayValue: false,
-                margin: 0
-            });
-            
-            win.print();
-            win.close();
+                // --- BARCODE GÓC TRÁI (MÃ PHIẾU) ---
+                if (doc.getElementById("barcode_phieu")) {
+                    win.JsBarcode("#barcode_phieu", data.ma_phieu, {
+                        format: "CODE128", width: 1.3, height: 35, displayValue: false, margin: 0
+                    });
+                }
+                
+                win.print();
+                win.close();
+            } catch (e) {
+                console.warn("Lỗi tạo barcode:", e);
+                win.print(); // Vẫn in dù lỗi barcode
+            }
         } else {
-            alert("Lỗi tải thư viện Barcode!");
+            console.warn("Thư viện JsBarcode chưa tải xong");
+            win.print();
         }
     }, 800);
 }
@@ -1440,4 +1500,83 @@ function resetFormKham() {
     tempPrescription = [];
     tempServices = [];
     $('#dt_table_body, #cd_table_body').empty();
+}
+
+// Hàm gọi số tiếp theo (Giao diện mới)
+function callNextPatient() {
+    var roomId = $('#filter_room').val();
+
+    // 1. Kiểm tra nếu chưa chọn phòng
+    if (!roomId || roomId === 'all') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa chọn phòng khám',
+            text: 'Vui lòng chọn phòng khám cụ thể trước khi gọi số!',
+            confirmButtonColor: '#3085d6',
+        });
+        return;
+    }
+
+    // 2. Hiện hộp thoại xác nhận đẹp mắt
+    Swal.fire({
+        title: 'Gọi bệnh nhân tiếp theo?',
+        text: "Hệ thống sẽ chuyển trạng thái và gửi thông báo đến App điện thoại.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#f39c12', // Màu vàng cam (giống nút Gọi của bạn)
+        cancelButtonColor: '#d33',
+        confirmButtonText: '<i class="fa-solid fa-bullhorn"></i> Gọi ngay',
+        cancelButtonText: 'Hủy bỏ'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            
+            // Hiện loading trong lúc chờ Server phản hồi
+            Swal.fire({
+                title: 'Đang xử lý...',
+                text: 'Đang gửi thông báo đến bệnh nhân',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Gọi API Backend
+            $.ajax({
+                url: '/api/kham-benh/goi-kham',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ 'room_id': roomId }),
+                success: function(response) {
+                    if (response.success) {
+                        // 3. Thông báo thành công
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Đã gọi thành công!',
+                            html: `<b style="font-size: 1.2em; color: #007bff">${response.data.patient_name}</b><br>Số thứ tự: <b>${response.data.number_order}</b>`,
+                            timer: 2000, // Tự tắt sau 2 giây
+                            showConfirmButton: false
+                        });
+                        
+                        // Tải lại danh sách
+                        loadExamList(); 
+                    } else {
+                        // Thông báo lỗi logic (VD: Hết người chờ)
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Thông báo',
+                            text: response.message,
+                        });
+                    }
+                },
+                error: function(err) {
+                    console.log(err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi hệ thống',
+                        text: 'Không kết nối được tới máy chủ!',
+                    });
+                }
+            });
+        }
+    });
 }

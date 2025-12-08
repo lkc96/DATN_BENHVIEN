@@ -79,6 +79,8 @@ class SessionRooms(db.Model):
     number_order = db.Column(db.Integer, nullable=False) 
     patient_name = db.Column(db.String(100))
     age = db.Column(db.Integer)
+    status = db.Column(db.String(50))
+    create_date = db.Column(db.Date, default=datetime.now().date)
 
 class Staff(db.Model):
     __tablename__ = 'staffs'

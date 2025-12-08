@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from app.extensions import db
 from app.models import (
     ExaminationSession, Patient, SessionRooms, ClinicRoom, Invoice, InvoiceDetail, Medicine, Prescription, PrescriptionDetail,
-    MagneticCard, ICD10, DiagnosisRecord,Service, ServiceOrder,CatalogServices, Staff, Expertise)
+    MagneticCard, ICD10, DiagnosisRecord,Service, ServiceOrder,CatalogServices, Staff, Expertise, Notification, get_vn_time)
 from sqlalchemy import desc, func, or_, and_
 from datetime import datetime, time
 from app.socket_events import send_notification
@@ -10,6 +10,7 @@ import time
 from flask_login import current_user
 
 from app.decorators import role_required
+
 
 kham_benh_bp = Blueprint('kham_benh', __name__)
 
@@ -597,7 +598,8 @@ def save_service_batch():
                             room_id=r_id,
                             number_order=new_stt,
                             patient_name=patient.full_name,
-                            age=age
+                            age=age,
+                            status = 'Đang chờ'
                             
                         )
                         db.session.add(new_sr)
@@ -1150,3 +1152,179 @@ def finish_examination():
         db.session.rollback()
         print("Lỗi kết thúc khám:", e)
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@kham_benh_bp.route('/api/kham-benh/goi-kham', methods=['POST'])
+@role_required(['Admin', 'Bác sĩ', 'Điều dưỡng'])
+def call_next_patient():
+    try:
+        data = request.json
+        room_id = data.get('room_id')
+
+        if not room_id:
+            return jsonify({'success': False, 'message': 'Thiếu thông tin phòng khám'}), 400
+
+        # 1. LẤY NGÀY HIỆN TẠI
+        today = datetime.now().date()
+
+        # 2. TÌM NGƯỜI CẦN GỌI NGAY 
+        # Logic: (Phòng này) AND (Ngày hôm nay) AND (Status='Đang chờ')
+        # Sắp xếp số nhỏ nhất lên đầu -> Lấy người đầu tiên
+        patient_to_call = db.session.query(SessionRooms, ExaminationSession, Patient)\
+            .join(ExaminationSession, SessionRooms.examination_id == ExaminationSession.examination_id)\
+            .join(Patient, ExaminationSession.patient_id == Patient.patient_id)\
+            .filter(
+                SessionRooms.room_id == int(room_id),
+                SessionRooms.create_date == today,  # So sánh trực tiếp ngày trong SessionRooms
+                SessionRooms.status == 'Đang chờ'
+            )\
+            .order_by(SessionRooms.number_order.asc())\
+            .first()
+
+        if not patient_to_call:
+            return jsonify({'success': False, 'message': 'Hết bệnh nhân chờ trong ngày hôm nay!'}), 404
+
+        # Unpack dữ liệu
+        sess_room, exam_sess, patient = patient_to_call
+
+        # 3. CẬP NHẬT TRẠNG THÁI NGƯỜI ĐƯỢC GỌI
+        sess_room.status = 'Đang khám'
+        exam_sess.status = 'Đang khám' 
+        
+        # (Optional) Update người đang khám trước đó thành 'Hoàn thành' nếu cần
+        # db.session.query(SessionRooms).filter(
+        #     SessionRooms.room_id == int(room_id),
+        #     SessionRooms.create_date == today,
+        #     SessionRooms.status == 'Đang khám',
+        #     SessionRooms.session_room_id != sess_room.session_room_id
+        # ).update({'status': 'Hoàn thành'})
+
+        db.session.commit()
+
+        # 4. GỬI THÔNG BÁO CHO NGƯỜI ĐƯỢC GỌI
+        if patient.account_id:
+            msg_title = "MỜI VÀO KHÁM"
+            msg_body = f"Mời bệnh nhân {patient.full_name} (Số {sess_room.number_order}) vào phòng khám ngay."
+            
+            # Lưu Notification
+            notif = Notification(
+                account_id=patient.account_id,
+                type='queue',
+                title=msg_title,
+                message=msg_body,
+                create_date=get_vn_time()
+            )
+            db.session.add(notif)
+            db.session.commit()
+            
+            # Bắn Socket
+            try:
+                send_notification(patient.account_id, 'queue', msg_title, msg_body)
+            except Exception:
+                pass
+
+        # 5. TÌM 2 NGƯỜI TIẾP THEO ĐỂ NHẮC CHUẨN BỊ
+        # Logic: Vẫn là Đang chờ & Hôm nay & STT lớn hơn người vừa gọi
+        next_patients = db.session.query(SessionRooms, ExaminationSession, Patient)\
+            .join(ExaminationSession, SessionRooms.examination_id == ExaminationSession.examination_id)\
+            .join(Patient, ExaminationSession.patient_id == Patient.patient_id)\
+            .filter(
+                SessionRooms.room_id == int(room_id),
+                SessionRooms.create_date == today,
+                SessionRooms.status == 'Đang chờ',
+                SessionRooms.number_order > sess_room.number_order 
+            )\
+            .order_by(SessionRooms.number_order.asc())\
+            .limit(2)\
+            .all()
+
+        count_remind = 0
+        for next_sr, next_es, next_p in next_patients:
+            if next_p.account_id:
+                # Tính khoảng cách
+                diff = next_sr.number_order - sess_room.number_order
+                
+                remind_title = "SẮP ĐẾN LƯỢT"
+                remind_msg = f"Bạn còn {diff} lượt nữa. Vui lòng chuẩn bị trước cửa phòng khám."
+
+                n = Notification(
+                    account_id=next_p.account_id,
+                    type='queue',
+                    title=remind_title,
+                    message=remind_msg,
+                    create_date=get_vn_time()
+                )
+                db.session.add(n)
+                
+                try:
+                    send_notification(next_p.account_id, 'queue', remind_title, remind_msg)
+                except: 
+                    pass
+                count_remind += 1
+        
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Đã gọi số {sess_room.number_order} ({patient.full_name}).',
+            'data': {
+                'patient_name': patient.full_name,
+                'number_order': sess_room.number_order
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Lỗi gọi khám: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    
+
+@kham_benh_bp.route('/api/kham-benh/lay-stt-in', methods=['GET'])
+def get_print_stt():
+    try:
+        ticket_code = request.args.get('ticket_code')
+        
+        if not ticket_code:
+            return jsonify({'success': False, 'message': 'Thiếu mã phiếu'})
+
+        # 1. Từ mã phiếu -> Lấy examination_id
+        order = ServiceOrder.query.filter_by(ticket_code=ticket_code).first()
+        
+        if not order:
+            return jsonify({'success': False, 'message': 'Không tìm thấy phiếu'})
+
+        today = datetime.now().date()
+
+        # 2. QUERY: Lấy STT từ SessionRooms
+        # Điều kiện:
+        # - Cùng examination_id với phiếu
+        # - Ngày hôm nay
+        # - Phòng đó phải có function = 'Phòng chức năng'
+        
+        result = db.session.query(SessionRooms, ClinicRoom)\
+            .join(ClinicRoom, SessionRooms.room_id == ClinicRoom.room_id)\
+            .filter(
+                SessionRooms.examination_id == order.examination_id,
+                SessionRooms.create_date == today,
+                ClinicRoom.function == 'Phòng chức năng' 
+            ).first()
+
+        # 3. TRẢ VỀ KẾT QUẢ
+        if result:
+            sess_room, room = result
+            return jsonify({
+                'success': True,
+                'stt': sess_room.number_order,   # Lấy số có sẵn
+                'room_name': room.room_name      # Lấy tên phòng có sẵn
+            })
+        else:
+            # Trường hợp chưa xếp hàng -> Trả về rỗng (Không tự tạo mới)
+            return jsonify({
+                'success': True, # Vẫn là success để JS không báo lỗi
+                'stt': '',       # Để trống hoặc điền 'Chưa cấp số'
+                'room_name': ''
+            })
+
+    except Exception as e:
+        print(f"Lỗi lấy STT: {e}")
+        return jsonify({'success': False, 'stt': '', 'room_name': ''})

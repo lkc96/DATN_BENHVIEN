@@ -182,7 +182,8 @@ def save_reception():
             room_id=room_id,
             number_order=new_order,
             patient_name=patient.full_name,
-            age=age
+            age=age,
+            status = 'Đang chờ'
         )
         db.session.add(session_room)
 
