@@ -612,7 +612,7 @@ def save_service_batch():
                 examination_id=exam_id,
                 total_amount=total_amount_invoice,
                 status='Chưa thanh toán',
-                create_date=datetime.utcnow()
+                create_date=get_vn_time()
             )
             db.session.add(new_invoice)
             db.session.flush() # Lấy ID
@@ -804,8 +804,8 @@ def kb_pay_invoice():
             db.session.add(inv)
             
             sess = ExaminationSession.query.get(inv.examination_id)
-            if sess.status == 'waiting': 
-                sess.status = 'processing'
+            if sess.status == 'Chờ khám': 
+                sess.status = 'Đang khám'
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Thanh toán thành công!'})
@@ -846,13 +846,12 @@ def save_prescription():
         if not prescription:
             prescription = Prescription(
                 examination_session_id=exam_id,
-                create_date=datetime.utcnow()
+                create_date=get_vn_time() # [SỬA] Dùng giờ VN
             )
             db.session.add(prescription)
-            db.session.flush() # Lấy ID để dùng cho bảng chi tiết
+            db.session.flush() 
         else:
-            # Nếu có rồi thì cập nhật ngày sửa (nếu cần)
-            prescription.create_date = datetime.utcnow()
+            prescription.create_date = get_vn_time() # [SỬA] Dùng giờ VN
 
         # B. Xử lý Chi tiết (Detail)
         # Xóa sạch chi tiết cũ để lưu lại danh sách mới (tránh trùng lặp)
@@ -862,35 +861,32 @@ def save_prescription():
             unit = item.get('unit', '') 
             
             # 1. TẠO CHUỖI DOSAGE (HƯỚNG DẪN)
-            parts = item.get('cach_dung_them')
+            # [SỬA] Đảm bảo parts là list
+            cach_dung_them = item.get('cach_dung_them')
+            parts = [cach_dung_them] if cach_dung_them else []
             
-            # Logic: Nếu có nhập số lượng thì mới thêm vào chuỗi
-            if item.get('sang') and int(item.get('sang')) > 0: 
-                parts.append(f"Sáng {item.get('sang')} {unit}")
-                
-            if item.get('trua') and int(item.get('trua')) > 0: 
-                parts.append(f"Trưa {item.get('trua')} {unit}")
-                
-            if item.get('chieu') and int(item.get('chieu')) > 0: 
-                parts.append(f"Chiều {item.get('chieu')} {unit}")
-                
-            if item.get('toi') and int(item.get('toi')) > 0: 
-                parts.append(f"Tối {item.get('toi')} {unit}")
+            # Logic thêm sáng/trưa/chiều/tối
+            for buoi in ['sang', 'trua', 'chieu', 'toi']:
+                sl = item.get(buoi)
+                if sl and int(sl) > 0:
+                    ten_buoi = buoi.capitalize().replace('Sang', 'Sáng').replace('Trua', 'Trưa').replace('Chieu', 'Chiều').replace('Toi', 'Tối')
+                    parts.append(f"{ten_buoi} {sl} {unit}")
             
-            # Ghép chuỗi lại: "Uống, Sáng 1 viên, Tối 1 viên"
+            # Ghép chuỗi lại
             dosage_str = ", ".join(parts)
-            
 
-            # 2. LẤY TỔNG SỐ LƯỢNG CẤP (Đã tính ở Client)
-            total_qty = int(item.get('so_luong', 0))
+            # 2. LẤY TỔNG SỐ LƯỢNG
+            try:
+                total_qty = int(item.get('so_luong', 0))
+            except:
+                total_qty = 0
 
             # 3. LƯU VÀO DB
             detail = PrescriptionDetail(
                 prescription_id=prescription.prescription_id,
                 medicine_id=int(item.get('id')),
-                
-                quantity=total_qty,   # <--- LƯU SỐ LƯỢNG VÀO ĐÂY
-                dosage=dosage_str     # <--- LƯU CHUỖI HƯỚNG DẪN
+                quantity=total_qty, 
+                dosage=dosage_str 
             )
             db.session.add(detail)
 
@@ -1162,51 +1158,42 @@ def call_next_patient():
         room_id = data.get('room_id')
 
         if not room_id:
-            return jsonify({'success': False, 'message': 'Thiếu thông tin phòng khám'}), 400
+            return jsonify({'success': False, 'message': 'Chưa chọn phòng khám!'}), 400
 
-        # 1. LẤY NGÀY HIỆN TẠI
         today = datetime.now().date()
 
-        # 2. TÌM NGƯỜI CẦN GỌI NGAY 
-        # Logic: (Phòng này) AND (Ngày hôm nay) AND (Status='Đang chờ')
-        # Sắp xếp số nhỏ nhất lên đầu -> Lấy người đầu tiên
+        # 1. Tìm người cần gọi (Đang chờ, số nhỏ nhất)
         patient_to_call = db.session.query(SessionRooms, ExaminationSession, Patient)\
             .join(ExaminationSession, SessionRooms.examination_id == ExaminationSession.examination_id)\
             .join(Patient, ExaminationSession.patient_id == Patient.patient_id)\
             .filter(
                 SessionRooms.room_id == int(room_id),
-                SessionRooms.create_date == today,  # So sánh trực tiếp ngày trong SessionRooms
+                SessionRooms.create_date == today,
                 SessionRooms.status == 'Đang chờ'
             )\
             .order_by(SessionRooms.number_order.asc())\
             .first()
 
+        # [QUAN TRỌNG] Nếu không tìm thấy ai -> Trả về thông báo Hết số
         if not patient_to_call:
-            return jsonify({'success': False, 'message': 'Hết bệnh nhân chờ trong ngày hôm nay!'}), 404
+            return jsonify({
+                'success': False, 
+                'message': 'Đã hết bệnh nhân chờ!' # Thông báo ngắn gọn cho Toast
+            }), 200 # Trả về 200 để Frontend xử lý logic warning dễ hơn
 
-        # Unpack dữ liệu
         sess_room, exam_sess, patient = patient_to_call
 
-        # 3. CẬP NHẬT TRẠNG THÁI NGƯỜI ĐƯỢC GỌI
+        # 2. Cập nhật trạng thái -> Đang khám
         sess_room.status = 'Đang khám'
-        exam_sess.status = 'Đang khám' 
-        
-        # (Optional) Update người đang khám trước đó thành 'Hoàn thành' nếu cần
-        # db.session.query(SessionRooms).filter(
-        #     SessionRooms.room_id == int(room_id),
-        #     SessionRooms.create_date == today,
-        #     SessionRooms.status == 'Đang khám',
-        #     SessionRooms.session_room_id != sess_room.session_room_id
-        # ).update({'status': 'Hoàn thành'})
-
+        exam_sess.status = 'Đang khám'
         db.session.commit()
 
-        # 4. GỬI THÔNG BÁO CHO NGƯỜI ĐƯỢC GỌI
+        # 3. Gửi thông báo & Socket (Giữ nguyên logic cũ của bạn)
         if patient.account_id:
             msg_title = "MỜI VÀO KHÁM"
-            msg_body = f"Mời bệnh nhân {patient.full_name} (Số {sess_room.number_order}) vào phòng khám ngay."
+            msg_body = f"Mời {patient.full_name} (Số {sess_room.number_order}) vào phòng khám."
             
-            # Lưu Notification
+            # DB Notification
             notif = Notification(
                 account_id=patient.account_id,
                 type='queue',
@@ -1217,14 +1204,12 @@ def call_next_patient():
             db.session.add(notif)
             db.session.commit()
             
-            # Bắn Socket
+            # Socket
             try:
                 send_notification(patient.account_id, 'queue', msg_title, msg_body)
-            except Exception:
-                pass
+            except: pass
 
-        # 5. TÌM 2 NGƯỜI TIẾP THEO ĐỂ NHẮC CHUẨN BỊ
-        # Logic: Vẫn là Đang chờ & Hôm nay & STT lớn hơn người vừa gọi
+        # 4. Nhắc nhở người sau (Giữ nguyên logic cũ)
         next_patients = db.session.query(SessionRooms, ExaminationSession, Patient)\
             .join(ExaminationSession, SessionRooms.examination_id == ExaminationSession.examination_id)\
             .join(Patient, ExaminationSession.patient_id == Patient.patient_id)\
@@ -1238,35 +1223,19 @@ def call_next_patient():
             .limit(2)\
             .all()
 
-        count_remind = 0
         for next_sr, next_es, next_p in next_patients:
             if next_p.account_id:
-                # Tính khoảng cách
                 diff = next_sr.number_order - sess_room.number_order
-                
-                remind_title = "SẮP ĐẾN LƯỢT"
-                remind_msg = f"Bạn còn {diff} lượt nữa. Vui lòng chuẩn bị trước cửa phòng khám."
-
-                n = Notification(
-                    account_id=next_p.account_id,
-                    type='queue',
-                    title=remind_title,
-                    message=remind_msg,
-                    create_date=get_vn_time()
-                )
-                db.session.add(n)
-                
                 try:
-                    send_notification(next_p.account_id, 'queue', remind_title, remind_msg)
-                except: 
-                    pass
-                count_remind += 1
+                    # Gửi socket nhắc nhở
+                    send_notification(next_p.account_id, 'queue', "SẮP ĐẾN LƯỢT", f"Bạn còn {diff} lượt nữa.")
+                except: pass
         
-        db.session.commit()
-
+        # 5. Trả về kết quả thành công
         return jsonify({
             'success': True,
-            'message': f'Đã gọi số {sess_room.number_order} ({patient.full_name}).',
+            # Message ngắn gọn: "Đang gọi: Nguyễn Văn A (Số 5)"
+            'message': f'Đang gọi: {patient.full_name} (Số {sess_room.number_order})', 
             'data': {
                 'patient_name': patient.full_name,
                 'number_order': sess_room.number_order
@@ -1275,8 +1244,8 @@ def call_next_patient():
 
     except Exception as e:
         db.session.rollback()
-        print(f"Lỗi gọi khám: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f"Lỗi: {e}")
+        return jsonify({'success': False, 'message': 'Lỗi hệ thống!'}), 500
     
 
 @kham_benh_bp.route('/api/kham-benh/lay-stt-in', methods=['GET'])

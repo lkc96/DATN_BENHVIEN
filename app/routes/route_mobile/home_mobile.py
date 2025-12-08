@@ -57,7 +57,7 @@ def get_home_data():
             .join(ExaminationSession, SessionRooms.examination_id == ExaminationSession.examination_id)\
             .join(ClinicRoom, SessionRooms.room_id == ClinicRoom.room_id)\
             .filter(ExaminationSession.patient_id == patient.patient_id)\
-            .filter(func.date(ExaminationSession.create_date) == date.today()) \
+            .filter(func.date(SessionRooms.create_date) == date.today()) \
             .order_by(SessionRooms.session_room_id.desc())\
             .all()
 
@@ -65,7 +65,33 @@ def get_home_data():
         
         for s_room, c_room in queues:
             my_number = s_room.number_order
-            current_number = max(1, my_number - 3) 
+            
+            # --- [SỬA ĐỔI QUAN TRỌNG: LẤY SỐ ĐANG KHÁM THẬT] ---
+            # Tìm xem ai đang có trạng thái 'Đang khám' tại phòng này hôm nay
+            active_session = db.session.query(SessionRooms)\
+                .filter(
+                    SessionRooms.room_id == c_room.room_id,
+                    SessionRooms.create_date == date.today(),
+                    SessionRooms.status == 'Đang khám' # Lọc theo trạng thái
+                )\
+                .order_by(SessionRooms.number_order.desc())\
+                .first()
+
+            if active_session:
+                current_number = active_session.number_order
+            else:
+                # Nếu không có ai đang khám, tìm số chờ nhỏ nhất hiện tại
+                # Để biết "đến số mấy rồi"
+                min_waiting = db.session.query(func.min(SessionRooms.number_order))\
+                    .filter(
+                        SessionRooms.room_id == c_room.room_id,
+                        SessionRooms.create_date == date.today(),
+                        SessionRooms.status == 'Đang chờ'
+                    ).scalar()
+                
+                # Nếu có người chờ thì số hiện tại coi như là (số nhỏ nhất - 1)
+                # Nếu không ai chờ, không ai khám -> Coi như là 0
+                current_number = (min_waiting - 1) if min_waiting else 0
             
             # 2. Tìm chính xác Bác sĩ của phòng này
             # Logic: Tìm Staff thuộc phòng này VÀ có Position chứa chữ "Bác sĩ"
@@ -87,7 +113,7 @@ def get_home_data():
                 "doctor_name": doctor_name,
                 "my_number": my_number,
                 "current_number": current_number,
-                "status": "waiting" if my_number > current_number else "processing"
+                "status": s_room.status
             })
         # Tìm thẻ từ liên kết với bệnh nhân này
         #card = MagneticCard.query.filter_by(patient_id=patient.patient_id).first()

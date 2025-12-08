@@ -1502,81 +1502,47 @@ function resetFormKham() {
     $('#dt_table_body, #cd_table_body').empty();
 }
 
-// Hàm gọi số tiếp theo (Giao diện mới)
+// Hàm gọi số tiếp theo (Gọn gàng với Toast)
 function callNextPatient() {
     var roomId = $('#filter_room').val();
 
-    // 1. Kiểm tra nếu chưa chọn phòng
+    // 1. Validate
     if (!roomId || roomId === 'all') {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Chưa chọn phòng khám',
-            text: 'Vui lòng chọn phòng khám cụ thể trước khi gọi số!',
-            confirmButtonColor: '#3085d6',
-        });
+        showToast('warning', 'Vui lòng chọn phòng khám cụ thể!');
         return;
     }
 
-    // 2. Hiện hộp thoại xác nhận đẹp mắt
-    Swal.fire({
-        title: 'Gọi bệnh nhân tiếp theo?',
-        text: "Hệ thống sẽ chuyển trạng thái và gửi thông báo đến App điện thoại.",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#f39c12', // Màu vàng cam (giống nút Gọi của bạn)
-        cancelButtonColor: '#d33',
-        confirmButtonText: '<i class="fa-solid fa-bullhorn"></i> Gọi ngay',
-        cancelButtonText: 'Hủy bỏ'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            
-            // Hiện loading trong lúc chờ Server phản hồi
-            Swal.fire({
-                title: 'Đang xử lý...',
-                text: 'Đang gửi thông báo đến bệnh nhân',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+    // 2. Gọi API
+    // Nút gọi nên disable tạm thời để tránh spam
+    var btn = $(event.target).closest('button');
+    btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Đang gọi...');
 
-            // Gọi API Backend
-            $.ajax({
-                url: '/api/kham-benh/goi-kham',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ 'room_id': roomId }),
-                success: function(response) {
-                    if (response.success) {
-                        // 3. Thông báo thành công
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Đã gọi thành công!',
-                            html: `<b style="font-size: 1.2em; color: #007bff">${response.data.patient_name}</b><br>Số thứ tự: <b>${response.data.number_order}</b>`,
-                            timer: 2000, // Tự tắt sau 2 giây
-                            showConfirmButton: false
-                        });
-                        
-                        // Tải lại danh sách
-                        loadExamList(); 
-                    } else {
-                        // Thông báo lỗi logic (VD: Hết người chờ)
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Thông báo',
-                            text: response.message,
-                        });
-                    }
-                },
-                error: function(err) {
-                    console.log(err);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Lỗi hệ thống',
-                        text: 'Không kết nối được tới máy chủ!',
-                    });
-                }
-            });
+    $.ajax({
+        url: '/api/kham-benh/goi-kham',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 'room_id': roomId }),
+        success: function(response) {
+            if (response.success) {
+                // Gọi thành công -> Toast Xanh
+                showToast('success', response.message);
+                
+                // Load lại danh sách để thấy thay đổi
+                loadExamList(); 
+            } else {
+                // Hết số hoặc lỗi logic -> Toast Vàng/Đỏ
+                // Nếu backend trả về 'Hết bệnh nhân chờ', ta dùng warning cho nhẹ nhàng
+                var type = response.message.includes('Hết bệnh nhân') ? 'warning' : 'error';
+                showToast(type, response.message);
+            }
+        },
+        error: function(err) {
+            console.error(err);
+            showToast('error', 'Lỗi kết nối máy chủ!');
+        },
+        complete: function() {
+            // Mở lại nút sau khi xong
+            btn.prop('disabled', false).html('<i class="fa-solid fa-bullhorn"></i> Gọi');
         }
     });
 }

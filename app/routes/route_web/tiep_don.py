@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 from app.extensions import db
 from app.models import (
     Patient, ClinicRoom, Service, CatalogServices, ExaminationSession, 
-    Account, MagneticCard, Invoice, InvoiceDetail, SessionRooms, Staff
+    Account, MagneticCard, Invoice, InvoiceDetail, SessionRooms, Staff, get_vn_time
 )
 from datetime import datetime, date
 from sqlalchemy import func
@@ -109,7 +109,7 @@ def save_reception():
             
             # A. Tạo Account (Mặc định user = mã thẻ, pass = 123456)
             new_account = Account(
-                username=card_code,
+                username=data.get('sdt'),
                 email=f"{card_code}@gmail.com",
                 password=generate_password_hash("123456"),
                 role_id=5 
@@ -153,7 +153,7 @@ def save_reception():
             room_id=room_id,
             reason=data.get('ly_do_kham'),
             status='Tiếp nhận',
-            create_date=datetime.utcnow()
+            create_date=get_vn_time()
         )
         db.session.add(session)
         db.session.flush() # Lấy session.examination_id
@@ -198,7 +198,7 @@ def save_reception():
                 total_amount=service_obj.unit_price, # Tổng tiền = tiền dịch vụ khám
                 status='Chưa thanh toán',
                 payment_method='Thẻ', # Mặc định
-                create_date=datetime.utcnow()
+                create_date=get_vn_time()
             )
             db.session.add(invoice)
             db.session.flush() # Lấy invoice_id
