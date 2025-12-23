@@ -197,7 +197,6 @@ def save_reception():
                 examination_id=session.examination_id,
                 total_amount=service_obj.unit_price, # Tổng tiền = tiền dịch vụ khám
                 status='Chưa thanh toán',
-                payment_method='Thẻ', # Mặc định
                 create_date=get_vn_time()
             )
             db.session.add(invoice)
@@ -232,7 +231,7 @@ def save_reception():
     except Exception as e:
         db.session.rollback() # Hoàn tác nếu lỗi
         print(e)
-        return jsonify({'success': False, 'message': 'Lỗi hệ thống: ' + str(e)}), 500
+        return jsonify({'success': False, 'message': 'Không tìm thấy hóa đơn: ' + str(e)}), 500
 
 
 #  Route Danh dách tiếp nhận
