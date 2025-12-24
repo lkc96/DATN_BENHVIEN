@@ -185,15 +185,28 @@ function savePatient() {
 
 function deletePatient(id) {
     if(!confirm("Xóa hồ sơ bệnh nhân này? (Dữ liệu thẻ và tài khoản sẽ bị xóa theo)")) return;
+    
     $.ajax({
         url: '/api/admin/patient/delete/' + id,
         type: 'DELETE',
         success: function(res) {
+            // Chạy khi HTTP Code = 200
             if(res.success) {
+                alert(res.message); // Thông báo xóa thành công
                 loadPatients(currentPatientPage);
-            } else {
-                alert(res.message);
             }
+        },
+        error: function(err) {
+            // Chạy khi HTTP Code = 400, 404, 500...
+            console.log(err);
+            
+            // Lấy thông báo lỗi từ JSON trả về (err.responseJSON)
+            var message = "Lỗi hệ thống!";
+            if(err.responseJSON && err.responseJSON.message) {
+                message = err.responseJSON.message;
+            }
+            
+            alert(message);
         }
     });
 }
