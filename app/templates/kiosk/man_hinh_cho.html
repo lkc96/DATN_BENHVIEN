@@ -221,20 +221,20 @@
                         }, 1000);
                     } 
                     
-                    // CASE 3: KHÔNG CÓ GÌ (REDIRECT) -> MÀU XANH DƯƠNG (INFO)
+                    // CASE 3: KHÔNG CÓ GÌ (REDIRECT) -> MÀU XANH DƯƠNG
                     else if (res.code === 'REDIRECT_RECEPTION') {
                         showResult('info', 'VUI LÒNG LIÊN HỆ QUẦY', 'Bạn chưa có lịch hẹn hoặc hóa đơn');
                     }
                     
                     // LỖI KHÁC
                     else {
-                        showResult('error', 'LỖI', res.message);
+                        showResult('error', '', res.message);
                     }
                 }
             },
             error: function(err) {
                 var msg = err.responseJSON ? err.responseJSON.message : "Lỗi kết nối";
-                showResult('error', 'LỖI HỆ THỐNG', msg);
+                showResult('error', '', msg);
             }
         });
     }
