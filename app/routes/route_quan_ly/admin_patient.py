@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify, render_template
 from app.extensions import db
-from app.models import Patient, Account, MagneticCard
+from app.models import Appointment, ExaminationSession, Patient, Account, MagneticCard
 from werkzeug.security import generate_password_hash
 from sqlalchemy import or_
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 from app.decorators import role_required
 
@@ -213,32 +214,54 @@ def save_patient():
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
-# 3. API XÓA (Giữ nguyên logic cũ)
+# 3. API XÓA
 @admin_patient_bp.route('/api/admin/patient/delete/<int:id>', methods=['DELETE'])
 @role_required(['Admin', 'Lễ tân'])
 def delete_patient(id):
     try:
         patient = Patient.query.get(id)
-        if not patient: return jsonify({'success': False}), 404
+        if not patient: 
+            return jsonify({'success': False, 'message': 'Không tìm thấy bệnh nhân'}), 404
         
-        # Xóa Account và Card liên quan trước (nếu muốn xóa sạch)
-        # Tuy nhiên, an toàn nhất là chỉ xóa Patient, nếu DB có Cascade thì tự bay
-        # Ở đây ta xử lý xóa thủ công để đảm bảo sạch rác
+        # 1. KIỂM TRA RÀNG BUỘC DỮ LIỆU Y TẾ (Giữ nguyên)
+        # Nếu bệnh nhân đã có Lịch hẹn hoặc Lịch sử khám -> KHÔNG ĐƯỢC XÓA
+        has_appointments = Appointment.query.filter_by(patient_id=id).first()
+        has_exams = ExaminationSession.query.filter_by(patient_id=id).first()
         
+        if has_appointments or has_exams:
+            return jsonify({
+                'success': False, 
+                'message': 'Không thể xóa: Bệnh nhân này đã có lịch sử khám chữa bệnh hoặc đặt hẹn. Vui lòng chỉ xóa các bệnh nhân nhập sai hoặc chưa có dữ liệu y tế.'
+            }), 400
+
         acc_id = patient.account_id
-        
-        # Xóa thẻ trước
+
+        if patient.card_id:
+            patient.card_id = None
+            db.session.add(patient)
+
+            db.session.flush() 
         MagneticCard.query.filter_by(patient_id=id).delete()
         
-        # Xóa bệnh nhân
         db.session.delete(patient)
         
-        # Xóa tài khoản
+        # BƯỚC D: Xóa Tài khoản (Account) nếu có
         if acc_id:
             Account.query.filter_by(account_id=acc_id).delete()
 
+        # Xác nhận toàn bộ giao dịch
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Đã xóa bệnh nhân và dữ liệu liên quan'})
+        
+        return jsonify({'success': True, 'message': 'Đã xóa hồ sơ bệnh nhân thành công'})
+
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({
+            'success': False, 
+            'message': 'Lỗi ràng buộc dữ liệu: Bệnh nhân đang được liên kết với dữ liệu khác (Hóa đơn, Đơn thuốc...).'
+        }), 400
+            
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': 'Không thể xóa (Có thể do đã có lịch sử khám)'}), 500
+        print(f"Lỗi xóa bệnh nhân: {e}") 
+        return jsonify({'success': False, 'message': 'Lỗi hệ thống: ' + str(e)}), 500
